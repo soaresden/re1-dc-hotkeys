@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RE1 Hotkeys Patcher</title>
+<style>
+  :root {
+    --bg: #f4f1ec; --card: #ffffff; --ink: #1d1b19; --muted: #6b655e; --line: #ddd6cc;
+    --accent: #8f1d14; --accent-ink: #ffffff; --ok: #2f7d32; --bad: #b3261e; --chip: #efe9e1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141211; --card: #1e1b19; --ink: #ece7e1; --muted: #a39b92; --line: #35302c;
+      --accent: #c8392b; --accent-ink: #ffffff; --ok: #6cc070; --bad: #ff8a80; --chip: #2a2623;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141211; --card: #1e1b19; --ink: #ece7e1; --muted: #a39b92; --line: #35302c;
+    --accent: #c8392b; --accent-ink: #ffffff; --ok: #6cc070; --bad: #ff8a80; --chip: #2a2623;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: .2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+            padding: 18px 18px 16px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  .step { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center;
+          border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 12px;
+          margin-right: 8px; vertical-align: 1px; }
+  input[type=file] { width: 100%; padding: 10px; border: 1px dashed var(--line); border-radius: 8px;
+                     background: var(--chip); color: var(--ink); }
+  .status { margin-top: 10px; font-size: 14px; min-height: 21px; }
+  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+  label.feat { display: flex; gap: 12px; padding: 10px 4px; border-top: 1px solid var(--line); cursor: pointer; }
+  label.feat:first-of-type { border-top: 0; }
+  label.feat input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .feat b { display: block; }
+  .feat span { color: var(--muted); font-size: 14px; }
+  kbd { background: var(--chip); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px;
+        font: 12px/18px ui-monospace, Consolas, monospace; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+  button { font: inherit; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--chip); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button:disabled { opacity: .45; cursor: default; }
+  .note { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>RE1 Hotkeys Patcher</h1>
+  <p class="sub">Resident Evil – Director's Cut (France) [SLES-009.70] · version <span id="ver"></span></p>
+
+  <section>
+    <h2><span class="step">1</span>Image du jeu</h2>
+    <input type="file" id="file" accept=".bin">
+    <div class="status" id="status">Choisis le <b>.bin</b> Redump du jeu (piste unique, 720 Mo). Rien n'est envoyé : tout se passe dans ton navigateur.</div>
+  </section>
+
+  <section>
+    <h2><span class="step">2</span>Options</h2>
+    <div id="features"></div>
+  </section>
+
+  <section>
+    <h2><span class="step">3</span>Patcher</h2>
+    <div class="buttons">
+      <button class="primary" id="dlBin" disabled>Télécharger le .bin patché (+ .cue)</button>
+      <button id="dlPpf" disabled>Télécharger un .ppf</button>
+    </div>
+    <p class="note">Le <b>.ppf</b> sert à DuckStation (option « Apply Image Patches ») : place-le à côté de l'image d'origine avec le même nom de fichier. Ça marche aussi avec un <b>.chd</b> du même jeu.<br>
+    Jeu en .chd uniquement ? Extrais d'abord le .bin : <kbd>chdman extractcd -i jeu.chd -o jeu.cue -ob jeu.bin</kbd></p>
+  </section>
+
+  <footer>Les patchs ne modifient que l'exécutable du jeu (SLES_009.70), pas les textures.</footer>
+</main>
+
+<script>
+/*CORE*/
+</script>
+<script>
+/*DATA*/
+</script>
+<script>
+(function () {
+  'use strict';
+  const P = window.RE1Patch, D = P.DATA;
+  const FEATURES = [
+    ['Déplacer les objets avec <kbd>Carré</kbd>', 'Dans l\'inventaire : Carré prend un objet, Carré sur un autre les échange. L\'arme équipée suit son objet.'],
+    ['Cases rapides <kbd>L2</kbd> + croix', 'Les 4 premières cases (flèches ↑ ↓ ← →) : arme = équiper, soin = utiliser. Pendant L2, la croix ne fait plus marcher.'],
+    ['Overlay des cases rapides', 'En maintenant L2, les 4 cases s\'affichent en bas de l\'écran (icônes, quantités, arme équipée).'],
+    ['Vie en haut à gauche', 'La santé en chiffres, couleur de l\'état (vert, jaune, orange, rouge).'],
+    ['Arme équipée et munitions', 'Sous la vie : icône de l\'arme et munitions restantes (rouge à zéro).'],
+    ['Demi-tour <kbd>Carré</kbd> + <kbd>Bas</kbd>', 'Comme dans RE3 : un demi-tour rapide.'],
+  ];
+  document.getElementById('ver').textContent = D.version;
+  const box = document.getElementById('features');
+  const checks = FEATURES.map(([title, text], i) => {
+    const l = document.createElement('label');
+    l.className = 'feat';
+    l.innerHTML = '<input type="checkbox" checked><div><b>' + title + '</b><span>' + text + '</span></div>';
+    box.appendChild(l);
+    return l.querySelector('input');
+  });
+  try { const saved = JSON.parse(localStorage.getItem('re1hk.features') || 'null');
+        if (Array.isArray(saved)) saved.forEach((v, i) => { if (checks[i]) checks[i].checked = !!v; }); } catch (e) {}
+  checks.forEach(c => c.addEventListener('change', () => {
+    try { localStorage.setItem('re1hk.features', JSON.stringify(checks.map(c => c.checked ? 1 : 0))); } catch (e) {}
+  }));
+
+  const status = document.getElementById('status');
+  const dlBin = document.getElementById('dlBin'), dlPpf = document.getElementById('dlPpf');
+  let file = null, sectors = null, exe = null;
+  const start = D.exeLba * P.SECTOR, len = D.exeSectors * P.SECTOR;
+  function say(text, cls) { status.innerHTML = text; status.className = 'status ' + (cls || ''); }
+
+  document.getElementById('file').addEventListener('change', async ev => {
+    file = ev.target.files[0]; sectors = exe = null;
+    dlBin.disabled = dlPpf.disabled = true;
+    if (!file) return;
+    if (file.size !== D.binSize) {
+      say('Taille inattendue (' + file.size.toLocaleString('fr') + ' octets, attendu ' + D.binSize.toLocaleString('fr') + '). Il faut le .bin Redump de la version française.', 'bad');
+      return;
+    }
+    say('Lecture…');
+    sectors = new Uint8Array(await file.slice(start, start + len).arrayBuffer());
+    exe = P.readExe(sectors);
+    const crc = P.crc32(exe);
+    if (crc === D.exeCrc) { say('✔ Image reconnue (exécutable d\'origine).', 'ok'); dlBin.disabled = dlPpf.disabled = false; }
+    else if (crc === D.patchedCrc) say('Cette image est déjà patchée : choisis l\'image d\'origine.', 'bad');
+    else say('Exécutable non reconnu (CRC ' + crc.toString(16) + ') : il faut l\'image Redump d\'origine.', 'bad');
+  });
+
+  function build() {
+    const cfg = checks.map(c => c.checked ? 1 : 0);
+    return P.encodeSectors(sectors, P.patchExe(exe, cfg));
+  }
+  const stem = () => file.name.replace(/\.bin$/i, '');
+  function save(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+  dlBin.addEventListener('click', () => {
+    const name = stem() + ' [Hotkeys].bin';
+    /* the unchanged parts are slices of the file: nothing is loaded in memory */
+    save(new Blob([file.slice(0, start), build(), file.slice(start + len)], { type: 'application/octet-stream' }), name);
+    save(new Blob(['FILE "' + name + '" BINARY\r\n  TRACK 01 MODE2/2352\r\n    INDEX 01 00:00:00\r\n'], { type: 'text/plain' }), stem() + ' [Hotkeys].cue');
+  });
+  dlPpf.addEventListener('click', () => {
+    save(new Blob([P.makePPF(sectors, build(), start, D.ppfDesc)], { type: 'application/octet-stream' }), stem() + '.ppf');
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# game data (never published)
+*.chd
+*.bin
+*.cue
+*.iso
+*.ppf
+*.sstate
+*.sstate.gz
+*.zip
+textures/
+SLES_*
+
+# generated
+build/
+
+# third-party tools (see README: where to get them)
+tools/mips/
+tools/redux/
+tools/chdman/
+tools/xdelta/
+
+__pycache__/
+*.pyc

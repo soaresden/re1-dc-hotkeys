@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RE1 Hotkeys Patcher</title>
+<style>
+  :root {
+    --bg: #f4f1ec; --card: #ffffff; --ink: #1d1b19; --muted: #6b655e; --line: #ddd6cc;
+    --accent: #8f1d14; --accent-ink: #ffffff; --ok: #2f7d32; --bad: #b3261e; --chip: #efe9e1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141211; --card: #1e1b19; --ink: #ece7e1; --muted: #a39b92; --line: #35302c;
+      --accent: #c8392b; --accent-ink: #ffffff; --ok: #6cc070; --bad: #ff8a80; --chip: #2a2623;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141211; --card: #1e1b19; --ink: #ece7e1; --muted: #a39b92; --line: #35302c;
+    --accent: #c8392b; --accent-ink: #ffffff; --ok: #6cc070; --bad: #ff8a80; --chip: #2a2623;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: .2px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+            padding: 18px 18px 16px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  .step { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center;
+          border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 12px;
+          margin-right: 8px; vertical-align: 1px; }
+  input[type=file] { width: 100%; padding: 10px; border: 1px dashed var(--line); border-radius: 8px;
+                     background: var(--chip); color: var(--ink); }
+  .status { margin-top: 10px; font-size: 14px; min-height: 21px; }
+  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+  label.feat { display: flex; gap: 12px; padding: 10px 4px; border-top: 1px solid var(--line); cursor: pointer; }
+  label.feat:first-of-type { border-top: 0; }
+  label.feat input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .feat b { display: block; }
+  .feat span { color: var(--muted); font-size: 14px; }
+  kbd { background: var(--chip); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px;
+        font: 12px/18px ui-monospace, Consolas, monospace; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+  button { font: inherit; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--chip); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button:disabled { opacity: .45; cursor: default; }
+  .note { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>RE1 Hotkeys Patcher</h1>
+  <p class="sub">Resident Evil – Director's Cut (France) [SLES-009.70] · version <span id="ver"></span></p>
+
+  <section>
+    <h2><span class="step">1</span>Image du jeu</h2>
+    <input type="file" id="file" accept=".bin">
+    <div class="status" id="status">Choisis le <b>.bin</b> Redump du jeu (piste unique, 720 Mo). Rien n'est envoyé : tout se passe dans ton navigateur.</div>
+  </section>
+
+  <section>
+    <h2><span class="step">2</span>Options</h2>
+    <div id="features"></div>
+  </section>
+
+  <section>
+    <h2><span class="step">3</span>Patcher</h2>
+    <div class="buttons">
+      <button class="primary" id="dlBin" disabled>Télécharger le .bin patché (+ .cue)</button>
+      <button id="dlPpf" disabled>Télécharger un .ppf</button>
+    </div>
+    <p class="note">Le <b>.ppf</b> sert à DuckStation (option « Apply Image Patches ») : place-le à côté de l'image d'origine avec le même nom de fichier. Ça marche aussi avec un <b>.chd</b> du même jeu.<br>
+    Jeu en .chd uniquement ? Extrais d'abord le .bin : <kbd>chdman extractcd -i jeu.chd -o jeu.cue -ob jeu.bin</kbd></p>
+  </section>
+
+  <footer>Les patchs ne modifient que l'exécutable du jeu (SLES_009.70), pas les textures.</footer>
+</main>
+
+<script>
+/* RE1 DC FR mod patcher, core (browser and Node).
+   Same steps as src/build_patch.py, from the code block built by src/build.py
+   (DATA, generated): no game data is embedded, the executable comes from the
+   user's own disc image.
+
+   Exported: RE1Patch.{DATA, crc32, readExe, patchExe, encodeSectors, makePPF} */
+(function (root) {
+  'use strict';
+
+  const SECTOR = 2352;
+
+  /* ---- CRC32 (to recognise the original executable) ---- */
+  const CRC_T = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    CRC_T[i] = c >>> 0;
+  }
+  function crc32(u8) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  /* ---- Mode 2 Form 1 EDC / ECC (port of src/cdsector.py) ---- */
+  const ECC_F = new Uint8Array(256), ECC_B = new Uint8Array(256), EDC_T = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const j = ((i << 1) ^ (i & 0x80 ? 0x11D : 0)) & 0xFF;
+    ECC_F[i] = j;
+    ECC_B[i ^ j] = i;
+    let e = i;
+    for (let k = 0; k < 8; k++) e = (e >>> 1) ^ (e & 1 ? 0xD8018001 : 0);
+    EDC_T[i] = e >>> 0;
+  }
+  function edc(s, from, to) {
+    let e = 0;
+    for (let i = from; i < to; i++) e = (e >>> 8) ^ EDC_T[(e ^ s[i]) & 0xFF];
+    return e >>> 0;
+  }
+  function eccPQ(s, majorCount, minorCount, majorMult, minorInc, out) {
+    const size = majorCount * minorCount;
+    for (let major = 0; major < majorCount; major++) {
+      let index = (major >> 1) * majorMult + (major & 1);
+      let a = 0, b = 0;
+      for (let m = 0; m < minorCount; m++) {
+        const t = s[0xC + index];
+        index += minorInc;
+        if (index >= size) index -= size;
+        a ^= t; b ^= t;
+        a = ECC_F[a];
+      }
+      a = ECC_B[ECC_F[a] ^ b];
+      s[out + major] = a;
+      s[out + major + majorCount] = a ^ b;
+    }
+  }
+  /* s: Uint8Array view of one 2352-byte sector, user data already in place */
+  function encodeMode2Form1(s) {
+    const e = edc(s, 0x10, 0x818);
+    s[0x818] = e & 0xFF; s[0x819] = (e >>> 8) & 0xFF; s[0x81A] = (e >>> 16) & 0xFF; s[0x81B] = e >>> 24;
+    const saved = s.slice(0xC, 0x10);
+    s.fill(0, 0xC, 0x10);
+    eccPQ(s, 86, 24, 2, 86, 0x81C);
+    eccPQ(s, 52, 43, 86, 88, 0x8C8);
+    s.set(saved, 0xC);
+  }
+
+  /* ---- executable ---- */
+  const rd32 = (u8, o) => (u8[o] | (u8[o + 1] << 8) | (u8[o + 2] << 16) | (u8[o + 3] << 24)) >>> 0;
+  function wr32(u8, o, v) { u8[o] = v & 0xFF; u8[o + 1] = (v >>> 8) & 0xFF; u8[o + 2] = (v >>> 16) & 0xFF; u8[o + 3] = v >>> 24; }
+
+  /* sectors: the executable's raw sectors (DATA.exeSectors * 2352 bytes) */
+  function readExe(sectors) {
+    const n = sectors.length / SECTOR, exe = new Uint8Array(n * 2048);
+    for (let i = 0; i < n; i++) exe.set(sectors.subarray(i * SECTOR + 24, i * SECTOR + 24 + 2048), i * 2048);
+    return exe;
+  }
+
+  /* last `drop` bytes of the image as (addr, len, data) segments (src/make_tail.py) */
+  function makeTail(exe, drop) {
+    const D = rd32(exe, 0x1C), tail = exe.subarray(0x800 + D - drop, 0x800 + D);
+    const base = 0x80010000 + D - drop, out = [];
+    const push32 = v => out.push(v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, v >>> 24);
+    let i = 0;
+    const n = tail.length;
+    while (i < n) {
+      if (tail[i]) {
+        let j = i, last = i;
+        while (j < n && (tail[j] || j - last < 32)) { if (tail[j]) last = j; j++; }
+        const s0 = i & ~3, e0 = (last + 4) & ~3;
+        push32(base + s0); push32(e0 - s0);
+        for (let k = s0; k < e0; k++) out.push(tail[k]);
+        i = e0;
+      } else i++;
+    }
+    push32(0); push32(0);
+    return Uint8Array.from(out);
+  }
+
+  /* exe: original SLES_009.70; config: array of 0/1 per feature -> patched exe */
+  function patchExe(exe, config) {
+    const D = root.RE1Patch.DATA;
+    const pc0 = rd32(exe, 0x10), tAddr = rd32(exe, 0x18), tSize = rd32(exe, 0x1C);
+    if (pc0 !== D.pc0 || tAddr !== D.origBase || tSize !== D.tSize) throw new Error('executable inattendu');
+    const code = b64(D.code);
+    const tail = makeTail(exe, D.block);
+    if (code.length + tail.length > D.block) throw new Error('bloc trop grand');
+    const out = new Uint8Array(exe.length);
+    out.set(exe.subarray(0, 0x800));
+    wr32(out, 0x10, D.base);                      /* pc0 */
+    wr32(out, 0x18, D.base);                      /* t_addr */
+    out.set(code, 0x800);
+    out.set(tail, 0x800 + code.length);
+    out.set(exe.subarray(0x800, 0x800 + tSize - D.block), 0x800 + D.block);
+    for (let i = 0; i < config.length; i++) out[0x800 + D.configOffset + i] = config[i] ? 1 : 0;
+    for (const [site, orig, jal] of D.hooks) {
+      const o = 0x800 + site - D.base;
+      if (rd32(out, o) !== orig) throw new Error('site 0x' + site.toString(16) + ' inattendu');
+      wr32(out, o, jal);
+    }
+    return out;
+  }
+
+  /* original raw sectors + patched exe -> patched raw sectors */
+  function encodeSectors(sectors, exe) {
+    const out = sectors.slice();
+    const n = out.length / SECTOR;
+    for (let i = 0; i < n; i++) {
+      const s = out.subarray(i * SECTOR, (i + 1) * SECTOR);
+      s.set(exe.subarray(i * 2048, (i + 1) * 2048), 24);
+      encodeMode2Form1(s);
+    }
+    return out;
+  }
+
+  /* PPF 3.0 (BIN image, no block check, no undo), as src/make_ppf.py;
+     a, b: original / patched bytes located at `offset` in the image */
+  function makePPF(a, b, offset, desc) {
+    const out = [];
+    const head = 'PPF30';
+    for (const ch of head) out.push(ch.charCodeAt(0));
+    out.push(2);
+    const d = (desc + ' '.repeat(50)).slice(0, 50);
+    for (const ch of d) out.push(ch.charCodeAt(0) & 0x7F);
+    out.push(0, 0, 0, 0);
+    /* records never cross a 64-sector boundary of the image (make_ppf.py
+       compares the images in such chunks): same output byte for byte */
+    const CH = SECTOR * 64;
+    let i = 0;
+    while (i < a.length) {
+      if (a[i] === b[i]) { i++; continue; }
+      const n = Math.min(a.length, (Math.floor((offset + i) / CH) + 1) * CH - offset);
+      let j = i;
+      while (j < n && j - i < 255 && a[j] !== b[j]) j++;
+      /* extend over short equal gaps to keep records few */
+      while (j < n && j - i < 255) {
+        let k = j;
+        while (k < n && a[k] === b[k] && k - j < 8) k++;
+        if (k < n && a[k] !== b[k] && k - i < 255) {
+          j = k;
+          while (j < n && j - i < 255 && a[j] !== b[j]) j++;
+        } else break;
+      }
+      let off = offset + i;
+      for (let k = 0; k < 8; k++) { out.push(off % 256); off = Math.floor(off / 256); }
+      out.push(j - i);
+      for (let k = i; k < j; k++) out.push(b[k]);
+      i = j;
+    }
+    return Uint8Array.from(out);
+  }
+
+  function b64(s) {
+    if (typeof atob === 'function') return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    return new Uint8Array(Buffer.from(s, 'base64'));
+  }
+
+  root.RE1Patch = Object.assign(root.RE1Patch || {}, { SECTOR, crc32, readExe, makeTail, patchExe, encodeSectors, makePPF });
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+window.RE1Patch = Object.assign(window.RE1Patch || {}, { DATA: {"version": "2026-10-11", "base": 2147543040, "block": 6144, "configOffset": 8, "code": "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", "hooks": [[2147688580, 201378743, 201341473], [2147830940, 201413583, 201341556], [2147690304, 201348867, 201341510]], "pc0": 2147878568, "origBase": 2147549184, "tSize": 653312, "exeLba": 287669, "exeSectors": 320, "exeCrc": 2586801651, "patchedCrc": 42268929, "binSize": 720248256, "ppfDesc": "RE1 DC FR - raccourcis L2 + deplacement objets"} });
+
+</script>
+<script>
+(function () {
+  'use strict';
+  const P = window.RE1Patch, D = P.DATA;
+  const FEATURES = [
+    ['Déplacer les objets avec <kbd>Carré</kbd>', 'Dans l\'inventaire : Carré prend un objet, Carré sur un autre les échange. L\'arme équipée suit son objet.'],
+    ['Cases rapides <kbd>L2</kbd> + croix', 'Les 4 premières cases (flèches ↑ ↓ ← →) : arme = équiper, soin = utiliser. Pendant L2, la croix ne fait plus marcher.'],
+    ['Overlay des cases rapides', 'En maintenant L2, les 4 cases s\'affichent en bas de l\'écran (icônes, quantités, arme équipée).'],
+    ['Vie en haut à gauche', 'La santé en chiffres, couleur de l\'état (vert, jaune, orange, rouge).'],
+    ['Arme équipée et munitions', 'Sous la vie : icône de l\'arme et munitions restantes (rouge à zéro).'],
+    ['Demi-tour <kbd>Carré</kbd> + <kbd>Bas</kbd>', 'Comme dans RE3 : un demi-tour rapide.'],
+  ];
+  document.getElementById('ver').textContent = D.version;
+  const box = document.getElementById('features');
+  const checks = FEATURES.map(([title, text], i) => {
+    const l = document.createElement('label');
+    l.className = 'feat';
+    l.innerHTML = '<input type="checkbox" checked><div><b>' + title + '</b><span>' + text + '</span></div>';
+    box.appendChild(l);
+    return l.querySelector('input');
+  });
+  try { const saved = JSON.parse(localStorage.getItem('re1hk.features') || 'null');
+        if (Array.isArray(saved)) saved.forEach((v, i) => { if (checks[i]) checks[i].checked = !!v; }); } catch (e) {}
+  checks.forEach(c => c.addEventListener('change', () => {
+    try { localStorage.setItem('re1hk.features', JSON.stringify(checks.map(c => c.checked ? 1 : 0))); } catch (e) {}
+  }));
+
+  const status = document.getElementById('status');
+  const dlBin = document.getElementById('dlBin'), dlPpf = document.getElementById('dlPpf');
+  let file = null, sectors = null, exe = null;
+  const start = D.exeLba * P.SECTOR, len = D.exeSectors * P.SECTOR;
+  function say(text, cls) { status.innerHTML = text; status.className = 'status ' + (cls || ''); }
+
+  document.getElementById('file').addEventListener('change', async ev => {
+    file = ev.target.files[0]; sectors = exe = null;
+    dlBin.disabled = dlPpf.disabled = true;
+    if (!file) return;
+    if (file.size !== D.binSize) {
+      say('Taille inattendue (' + file.size.toLocaleString('fr') + ' octets, attendu ' + D.binSize.toLocaleString('fr') + '). Il faut le .bin Redump de la version française.', 'bad');
+      return;
+    }
+    say('Lecture…');
+    sectors = new Uint8Array(await file.slice(start, start + len).arrayBuffer());
+    exe = P.readExe(sectors);
+    const crc = P.crc32(exe);
+    if (crc === D.exeCrc) { say('✔ Image reconnue (exécutable d\'origine).', 'ok'); dlBin.disabled = dlPpf.disabled = false; }
+    else if (crc === D.patchedCrc) say('Cette image est déjà patchée : choisis l\'image d\'origine.', 'bad');
+    else say('Exécutable non reconnu (CRC ' + crc.toString(16) + ') : il faut l\'image Redump d\'origine.', 'bad');
+  });
+
+  function build() {
+    const cfg = checks.map(c => c.checked ? 1 : 0);
+    return P.encodeSectors(sectors, P.patchExe(exe, cfg));
+  }
+  const stem = () => file.name.replace(/\.bin$/i, '');
+  function save(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+  dlBin.addEventListener('click', () => {
+    const name = stem() + ' [Hotkeys].bin';
+    /* the unchanged parts are slices of the file: nothing is loaded in memory */
+    save(new Blob([file.slice(0, start), build(), file.slice(start + len)], { type: 'application/octet-stream' }), name);
+    save(new Blob(['FILE "' + name + '" BINARY\r\n  TRACK 01 MODE2/2352\r\n    INDEX 01 00:00:00\r\n'], { type: 'text/plain' }), stem() + ' [Hotkeys].cue');
+  });
+  dlPpf.addEventListener('click', () => {
+    save(new Blob([P.makePPF(sectors, build(), start, D.ppfDesc)], { type: 'application/octet-stream' }), stem() + '.ppf');
+  });
+})();
+</script>
+</body>
+</html>
