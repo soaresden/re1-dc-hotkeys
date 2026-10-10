@@ -21,3 +21,6 @@ tools/xdelta/
 
 __pycache__/
 *.pyc
+
+# local notes
+annonces.md
