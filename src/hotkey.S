@@ -11,6 +11,7 @@
      3 hud_hp      feat_hud.S         health top left, coloured like the condition
      4 hud_ammo    feat_hud.S         equipped weapon + ammo under it
      5 quickturn   feat_quickturn.S   Square + Down: 180 degree turn
+     6 options     feat_options.S     hold Select: in-game menu to switch 0..5
    Shared code: lib.S (game state tests, primitives, numbers).
 
    Three calls of the game are redirected (src/build_patch.py):
@@ -28,7 +29,7 @@ _start:
         nop
         .globl config
 config:
-        .byte   1, 1, 1, 1, 1, 1, 0, 0
+        .byte   1, 1, 1, 1, 1, 1, 1, 0
 
 boot:
         /* the last BLOCK_SIZE bytes of the original image (from TAIL_START)
@@ -86,7 +87,14 @@ hook:
         addiu   $t0, $t0, %lo(st)
         li      $t1, 0xff
         sb      $t1, ST_PICK($t0)
-        CFG($t0, C_QUICKSLOTS)
+        CFG($t0, C_OPTIONS)
+        beqz    $t0, 3f
+        nop
+        jal     options_hook               /* v0 = 1: the frame is the menu's */
+        nop
+        bnez    $v0, 9f
+        nop
+3:      CFG($t0, C_QUICKSLOTS)
         beqz    $t0, 2f
         nop
         jal     quickslot_input
@@ -110,7 +118,21 @@ frame_hook:
         sw      $ra, 0x1c($sp)
         sw      $s4, 0x18($sp)
         JAL(F_PAL_ANIM)                    /* the replaced call */
-        jal     game_running
+        lui     $t0, %hi(st + ST_OPT)
+        lbu     $t0, %lo(st + ST_OPT)($t0)
+        beqz    $t0, 1f
+        nop
+        jal     ot_desc_game               /* options menu over the frozen frame */
+        nop
+        lui     $t0, %hi(Y_OFFSET)
+        lbu     $t1, %lo(Y_OFFSET)($t0)
+        lui     $t2, %hi(st + ST_YBIAS)
+        sh      $t1, %lo(st + ST_YBIAS)($t2)
+        jal     options_draw
+        nop
+        b       9f
+        nop
+1:      jal     game_running
         nop
         beqz    $v0, 9f
         nop
@@ -193,7 +215,13 @@ draw_hook:
 #include "feat_quickslots.S"
 #include "feat_quickturn.S"
 #include "feat_hud.S"
+/* second code range (.text2): unreachable game code at OPT_CODE, see
+   feat_options.S; the overlay lives there too (no room left in the block) */
+        .section .text2, "ax"
+        .globl opt_start
+opt_start:
 #include "feat_overlay.S"
+#include "feat_options.S"
 
         .globl code_end
 code_end:
@@ -210,6 +238,7 @@ st:                                        /* state of the features */
         .hword  0                          /* ST_YBIAS: 0 or 240, see frame_hook */
         .byte   0                          /* ST_MENU: see menu_open */
         .byte   0
+        .byte   0, 0, 0, 0                 /* ST_OPT, ST_OPTCUR, ST_SELCNT, ST_OPTLOCK */
 
         .section .tail
         .balign 4

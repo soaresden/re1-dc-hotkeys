@@ -28,6 +28,30 @@ from versions import VERSIONS, header  # noqa: E402
 
 PPF_DESC = 'RE1 DC - quick slots, HUD, quick turn'
 
+# in-game options menu (feat_options.S), English in every version:
+# title, the 6 options (config bytes 0..5), on / off, help ('[]' = Square)
+MENU_TEXT = ['MOD OPTIONS', 'MENU - MOVE ITEMS WITH []', 'L2 - HOTKEYS', 'OVERLAY - L2 SHORTCUTS',
+             'OVERLAY - HP', 'OVERLAY - GUN AND AMMO', 'QUICK TURN WITH DOWN+SQUARE',
+             'ON', 'OFF', 'X: SWITCH   START: BACK']
+
+
+def menu_files(vid):
+    """build/<vid>/font.inc and strings.inc, included by feat_options.S"""
+    import font
+    assert len(font.CHARS) == 42, 'FONT_GLYPHS in feat_options.S'
+    for text in MENU_TEXT:
+        assert all(c in font.CHARS for c in text), text
+    open(vdir(vid, 'font.inc'), 'w', newline='\n').write(font.asm())
+    t = MENU_TEXT
+    enc = lambda s: ', '.join(str(g) for g in font.encode(s) + [0xff])
+    out = ['opt_labels:'] + ['        .word str_opt%d' % i for i in range(6)]
+    names = ['str_title'] + ['str_opt%d' % i for i in range(6)] + ['str_on', 'str_off', 'str_help']
+    for name, text in zip(names, t):
+        out.append('%s: .byte %s   /* %s */' % (name, enc(text), text))
+    out.append('str_cursor: .byte %s' % enc('>'))
+    out.append('        .balign 4')
+    open(vdir(vid, 'strings.inc'), 'w', newline='\n').write('\n'.join(out) + '\n')
+
 
 def tool(name):
     for pat in (os.path.join(TOOLS, 'mips', 'bin', 'mipsel-none-elf-' + name + '*'),):
@@ -93,12 +117,20 @@ def assemble(vid):
     tail_start = build_patch.ORIG_BASE + t_size - build_patch.BLOCK
     open(b('version.h'), 'w', newline='\n').write(
         header(vid) + '#define %-16s 0x%08x\n#define %-16s 0x%x\n' % ('TAIL_START', tail_start, 'BLOCK_SIZE', build_patch.BLOCK))
+    menu_files(vid)
+    a = VERSIONS[vid]['addr']
+    open(b('link.ld'), 'w', newline='\n').write(
+        'SECTIONS {\n  . = 0x%08X;\n  .text : { *(.text) *(.data) *(.tail) }\n'
+        '  . = 0x%08X;\n  .text2 : { *(.text2) }\n'
+        '  /DISCARD/ : { *(.MIPS.abiflags) *(.reginfo) *(.pdr) *(.gnu.attributes) }\n}\n'
+        % (build_patch.HOOK_BASE, a['OPT_CODE']))
     pre = subprocess.check_output([tool('cpp'), '-P', '-undef', '-I', vdir(vid), os.path.join(SRC, 'hotkey.S')]).decode()
     open(b('hotkey.pre.s'), 'w', newline='\n').write(pre)
     run(sys.executable, os.path.join(SRC, 'fix_delay.py'), b('hotkey.pre.s'), b('hotkey.s'))
     run(tool('as'), '-march=r3000', '-mno-shared', '-EL', '-I', vdir(vid), '-o', b('hotkey.o'), b('hotkey.s'))
-    run(tool('ld'), '-EL', '-T', os.path.join(SRC, 'link.ld'), '-o', b('hotkey.elf'), b('hotkey.o'))
+    run(tool('ld'), '-EL', '-T', b('link.ld'), '-o', b('hotkey.elf'), b('hotkey.o'))
     run(tool('objcopy'), '-O', 'binary', '-j', '.text', b('hotkey.elf'), b('hotkey.bin'))
+    run(tool('objcopy'), '-O', 'binary', '-j', '.text2', b('hotkey.elf'), b('hotkey2.bin'))
     check_hazards(vid)
 
 
@@ -108,11 +140,13 @@ def check_hazards(vid):
     syms = build_patch.symbols(b('hotkey.elf'))
     code_end = syms['code_end']
     data = (syms['config'], syms['config'] + 8)     # config: data, not code
+    code2 = (syms['opt_start'], syms['opt_code_end'])
     d = subprocess.check_output([tool('objdump'), '-d', '-EL', b('hotkey.elf')]).decode().splitlines()
     ins = []
     for l in d:
         m = re.match(r'^\s*(?:ffffffff)?([0-9a-f]{8}):\s+([0-9a-f]{8})\s+(\S+)\s*(.*)$', l)
-        if m and int(m.group(1), 16) < code_end and not data[0] <= int(m.group(1), 16) < data[1]:
+        a = int(m.group(1), 16) if m else 0
+        if m and (a < code_end and not data[0] <= a < data[1] or code2[0] <= a < code2[1]):
             ins.append((m.group(1), m.group(3), m.group(4)))
     bad = 0
     jumps = ('j', 'jal', 'jr', 'jalr')
@@ -127,8 +161,11 @@ def check_hazards(vid):
             if nxt.startswith('b') or nxt in jumps:
                 print('BRANCH IN DELAY SLOT', a); bad += 1
     size = os.path.getsize(b('hotkey.bin'))
-    print('%-5s code %d octets, bloc %d / %d, hazards %d' % (vid, code_end - syms['_start'], size, build_patch.BLOCK, bad))
-    if bad or size > build_patch.BLOCK:
+    size2 = os.path.getsize(b('hotkey2.bin'))
+    max2 = VERSIONS[vid]['addr']['OPT_CODE_SIZE']
+    print('%-5s code %d octets, bloc %d / %d, menu %d / %d, hazards %d' % (
+        vid, code_end - syms['_start'], size, build_patch.BLOCK, size2, max2, bad))
+    if bad or size > build_patch.BLOCK or size2 > max2:
         sys.exit('construction refusée')
 
 
@@ -176,6 +213,7 @@ def make_patcher(vids):
         data['versions'][vid] = {
             'name': v['name'], 'serial': v['serial'],
             'code': base64.b64encode(open(b('hotkey.bin'), 'rb').read()[:syms['taildata'] - syms['_start']]).decode(),
+            'code2': base64.b64encode(open(b('hotkey2.bin'), 'rb').read()).decode(), 'code2Addr': v['addr']['OPT_CODE'],
             'hooks': [[site, orig, build_patch.jal(syms[name])] for site, orig, name in build_patch.hooks(vid)],
             'pc0': v['addr']['GAME_ENTRY'], 'tSize': struct.unpack_from('<I', exe, 0x1C)[0],
             'exeLba': v['exe_lba'], 'exeSectors': v['exe_sectors'],

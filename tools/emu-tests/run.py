@@ -96,6 +96,7 @@ def main():
                HK_SITE_HOOK='%08x' % sites['SITE_HOOK'], HK_SITE_GRID='%08x' % sites['SITE_GRID'],
                HK_SITE_FRAME='%08x' % sites['SITE_FRAME'], HK_VER=VER,
                HK_INJECT=os.environ.get('HK_INJECT', os.path.join(BUILD, VER, 'hotkey.bin')),
+               HK_INJECT2=os.path.join(BUILD, VER, 'hotkey2.bin'), HK_BASE2='%08x' % s['opt_start'],
                HARNESS_OUT_DIR=outdir, HARNESS_OUT=outdir,
                HARNESS_SCRIPT=os.path.join(HERE, 's_hk.lua'))
     cmd = [emulator(), '-cli', '-stdout', '-interpreter', '-run',

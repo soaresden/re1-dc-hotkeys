@@ -132,6 +132,7 @@ overlay_draw:
         addiu   $sp, $sp, 0x30
 
         .section .data
+        .balign 4
 ov_order:                                  /* quick slot shown in each cell */
         .byte   2, 0, 1, 3
 ov_arrows:                                 /* per quick slot, relative to the cell (x, OV_Y) */
@@ -141,4 +142,4 @@ ov_arrows:                                 /* per quick slot, relative to the ce
         .byte   25,4,  17,-1, 17,9         /* right */
 ov_band:                                   /* relative to (160, OV_Y + 22) */
         .byte   -100,-24,  100,-24,  -100,24,  100,24
-        .section .text
+        .section .text2, "ax"

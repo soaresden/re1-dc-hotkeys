@@ -146,3 +146,13 @@ Manette mappée : Carré (course) 0x0200, ↓ 0x0024, ↑ 0x0011, ← 0x0008, �
 - Tester DuckStation / Beetle, Chris, Rebecca, portes.
 - Gagner de la place : utiliser les délais de `jal`, regrouper les `lui 0x800c/0x800d`.
 - Initialiser un dépôt git (ignorer `build/`, `tools/mips`, `tools/redux`, les CHD, le zip de textures).
+
+## Menu d'options en jeu (feat_options.S, option 6)
+
+Select maintenu `OPT_HOLD` (75) images de jeu : `opt_open` suspend la tâche de jeu, StoreImage du tampon de `Y_OFFSET` (dernière image dessinée) vers 0x801D10EC (copie du décor, redessinée par la boucle à chaque image : l'image figée reste), sauvegarde la VRAM sous la police (rect (896,496,42,16) + CLUT (944,496)) dans `VRAM_SAVE`, décompresse la police 1 bpp (`src/font.py`, 42 glyphes, sans J ni Z) en 4 bpp dans `FONT_RAM` et la charge. Haut/Bas, Croix/Gauche/Droite (bascule `config[0..5]`), Start/Triangle/Select (sortie). `opt_close` remet la VRAM, lance une tâche (slot 1) qui appelle `F_BG_RELOAD` (rechargement du décor depuis le CD, comme à la sortie de l'inventaire) puis reprend la tâche de jeu ; `ST_OPTLOCK` cache la manette au jeu jusqu'au relâchement. Dessin : panneau F4 noir à 50 % (E1 abr 0), texte en SPRT_8 (0x74, couleur = teinte), page de texture `MODE_FONT`. Libellés anglais dans toutes les versions (`build.py` MENU_TEXT → `build/<v>/strings.inc`, police → `font.inc`).
+
+**Deuxième zone de code `.text2`** à `OPT_CODE` (code mort de 3196 o, `link.ld` généré par version) : overlay + menu (~2,6 Ko). `build_patch.py` l'écrit en place dans l'image, le patcheur aussi (`code2`, `code2Addr`). Plages mortes trouvées par `tools/re/deadcode.py` (atteignabilité depuis toutes les références possibles) : FR 0x8008749C (3196, code), 0x800142F8 (1736, `VRAM_SAVE`), 0x800628A0 (1716, `FONT_RAM`), 0x8005CB3C (1468, libre) ; mêmes tailles en US/DS (`versions.py`). Vérifiées dans PCSX-Redux : démarrage à froid FR avec surveillance exécution/lecture/écriture (seul le BIOS y écrit, au chargement de l'exe), scénarios FR/US/DS (`DEAD_RANGES=...`).
+
+**HUD munitions** : à côté des balles chargées (vert), réserve en bleu = somme des quantités des objets `ammo_of[arme]` de l'inventaire (table dans feat_hud.S : Beretta 0x0B, fusil 0x0C, Colt Python 0x04 → 0x0E, 0x05 → 0x0D, bazookas 0x07/08/09 → 0x10/11/12 ; liste d'objets donnée par Denis).
+
+Testé (PCSX-Redux) sur les 3 versions : ouverture, bascule, reprise, effet immédiat ; démarrage avec BIOS Sony SCPH-5502 (FR) et SCPH-1001 (US) : tas du noyau < 0xE600.

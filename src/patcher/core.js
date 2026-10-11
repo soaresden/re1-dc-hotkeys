@@ -114,6 +114,10 @@
     out.set(code, 0x800);
     out.set(tail, 0x800 + code.length);
     out.set(exe.subarray(0x800, 0x800 + tSize - D.block), 0x800 + D.block);
+    if (V.code2) {                                /* options menu, in unreachable game code */
+      const code2 = b64(V.code2);
+      out.set(code2, 0x800 + V.code2Addr - D.base);
+    }
     for (let i = 0; i < config.length; i++) out[0x800 + D.configOffset + i] = config[i] ? 1 : 0;
     for (const [site, orig, jal] of V.hooks) {
       const o = 0x800 + site - D.base;

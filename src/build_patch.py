@@ -63,6 +63,12 @@ def build_exe(vid, d):
         off = site - HOOK_BASE
         assert struct.unpack_from('<I', new_image, off)[0] == orig, (vid, hex(site))
         struct.pack_into('<I', new_image, off, jal(syms[name]))
+    # the options menu, in game code that nothing can reach (feat_options.S)
+    a = v['addr']
+    code2 = open(p('hotkey2.bin'), 'rb').read()
+    assert len(code2) <= a['OPT_CODE_SIZE'], hex(len(code2))
+    off = a['OPT_CODE'] - HOOK_BASE
+    new_image[off:off + len(code2)] = code2
     new_hdr = bytearray(hdr)
     struct.pack_into('<IIII', new_hdr, 0x10, HOOK_BASE, gp0, HOOK_BASE, t_size)
     out = bytes(new_hdr) + bytes(new_image)

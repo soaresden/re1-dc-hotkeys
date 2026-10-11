@@ -44,9 +44,11 @@ Pendant que L2 est maintenu, la croix ne fait plus bouger le perso.
 
 **Vie** : en haut à gauche, une croix et la santé en chiffres, dans la couleur de l'état affiché par l'inventaire (vert « Bien », jaune et orange « Attention », rouge « Danger »).
 
-**Arme et munitions** : sous la vie, l'icône de l'arme équipée et ses munitions (en rouge à zéro ; rien pour le couteau).
+**Arme et munitions** : sous la vie, l'icône de l'arme équipée, ses balles chargées (en rouge à zéro ; rien pour le couteau) et, en bleu, les munitions de ce type portées dans l'inventaire (toutes les piles additionnées).
 
 **Demi-tour** : **Carré + Bas**, comme dans RE3. Ensuite, relâche Bas pour repartir.
+
+**Menu d'options en jeu** : maintiens **Select** environ 3 secondes. Le jeu se fige sur sa dernière image ; **Haut / Bas** pour choisir, **Croix** (ou Gauche / Droite) pour activer / désactiver, **Start** pour revenir au jeu. Les changements valent jusqu'à l'extinction (le choix du patcheur revient au démarrage suivant).
 
 ## Limites
 

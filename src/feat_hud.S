@@ -2,8 +2,9 @@
      hud_hp   : top left, a cross in the colour of the condition shown by
                 the inventory (green / yellow / orange / red) and the health
                 in digits of the same colour family
-     hud_ammo : under it, the equipped weapon icon (half size) and its ammo
-                (red when empty, nothing for the knife)
+     hud_ammo : under it, the equipped weapon icon (half size), its loaded
+                ammo (red when empty, nothing for the knife) and, in blue,
+                the ammo of its type carried in the inventory (reserve)
    Condition level = (health - 1) / (max health / 4), max 3, as the
    inventory computes it (max health: byte P_HPMAX).
 
@@ -115,6 +116,34 @@ hud_draw:
         li      $a1, HUD_Y + 16
         jal     draw_number
         move    $a2, $s1
+        /* reserve: quantities of the inventory items that are this weapon's ammo */
+        sw      $v0, 0x10($sp)             /* x after the loaded ammo */
+        sltiu   $t1, $s0, 11
+        beqz    $t1, 9f
+        nop
+        lui     $t1, %hi(ammo_of)
+        addu    $t1, $t1, $s0
+        lbu     $t1, %lo(ammo_of)($t1)     /* ammo item id, 0 = none */
+        beqz    $t1, 9f
+        nop
+        lui     $t8, %hi(INV_PTR)
+        lw      $t2, %lo(INV_PTR)($t8)
+        move    $a2, $zero
+        li      $t3, 8                     /* 8 slots (6 for Chris: the rest is empty) */
+5:      lbu     $t4, 0($t2)
+        lbu     $t5, 1($t2)
+        bne     $t4, $t1, 6f
+        addiu   $t3, $t3, -1
+        addu    $a2, $a2, $t5
+6:      bnez    $t3, 5b
+        addiu   $t2, $t2, 2
+        beqz    $a2, 9f
+        nop
+        lw      $a0, 0x10($sp)
+        addiu   $a0, $a0, 4
+        li      $a1, HUD_Y + 16
+        jal     draw_number
+        li      $a3, DIG_BLUE
 9:      lui     $a0, (MODE_ADD >> 16)      /* draw mode, drawn first: the game may leave */
         ori     $a0, $a0, (MODE_ADD & 0xffff)  /* drawing to the display area off */
         jal     put_mode
@@ -140,4 +169,8 @@ ammo_count:
         .section .data
 level_digits:                              /* digit colour per condition level */
         .byte   DIG_RED, DIG_ORANGE, DIG_ORANGE, DIG_GREEN
+ammo_of:                                   /* ammo item of weapons 0..10 (0 = none): Beretta 0B, shotgun 0C,
+                                              Colt Python 0E (magnum), 05 (dumdum) 0D, bazooka 07/08/09: 10/11/12 */
+        .byte   0, 0, 0x0b, 0x0c, 0x0e, 0x0d, 0, 0x10, 0x11, 0x12, 0
+        .balign 4
         .section .text

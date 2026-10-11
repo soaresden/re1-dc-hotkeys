@@ -24,6 +24,11 @@ at(12, function(a, n)
     a.w32(tonumber(os.getenv('HK_SITE_HOOK'), 16), tonumber(os.getenv('HK_JAL'), 16))
     a.w32(tonumber(os.getenv('HK_SITE_GRID'), 16), tonumber(os.getenv('HK_DRAWJAL'), 16))
     a.w32(tonumber(os.getenv('HK_SITE_FRAME'), 16), tonumber(os.getenv('HK_FRAMEJAL'), 16))
+    if (os.getenv('HK_INJECT2') or '') ~= '' then
+      local f2 = io.open(os.getenv('HK_INJECT2'), 'rb'); local d2 = f2:read('*a'); f2:close()
+      local b2 = tonumber(os.getenv('HK_BASE2'), 16)
+      for i = 1, #d2 do a.w8(b2 + i - 1, d2:byte(i)) end
+    end
     a.L('INJECTED '..#data)
   end
 end)
@@ -168,6 +173,54 @@ if SCEN == 'stripes' then
   at(66, function(a, n) a.press(a.B.DOWN, 6) end)
   at(200, function(a, n) st(a, n, 'POST') a.vram('v_after') a.dump('r_after') a.shot('after') end)
 end
+if SCEN == 'ammo' then
+  -- reserve ammo next to the loaded ammo: two clips in slots 3 and 4, equip the Beretta
+  at(30, function(a, n)
+    a.w8(0x800c878a, 0x0b) a.w8(0x800c878b, 30) a.w8(0x800c878c, 0x0b) a.w8(0x800c878d, 15) a.w8(0x800c8667, 5) end)
+  at(60, function(a, n) a.press(a.B.L2, 30) end)
+  at(66, function(a, n) a.press(a.B.DOWN, 6) end)
+  at(200, function(a, n) a.shot('ammo') end)
+end
+if SCEN == 'items' then
+  -- ITEMS="0b,0c,0d,0e,0f": put these ids in the inventory slots 3.. and look
+  at(30, function(a, n)
+    local k = 3
+    for id in (os.getenv('ITEMS') or ''):gmatch('%x+') do
+      a.w8(0x800c8784 + 2 * k, tonumber(id, 16)) a.w8(0x800c8785 + 2 * k, 7) k = k + 1 end
+    a.w8(0x800c8667, k)
+  end)
+  at(60, function(a, n) a.press(a.B.START, 6) end)
+  at(170, function(a, n) a.shot('inv') end)
+  -- cursor to slots 3..7, Cross (sub-menu with the name), shot, Triangle
+  local moves = {{'DOWN', 'RIGHT'}, {'LEFT', 'DOWN'}, {'RIGHT'}, {'LEFT', 'DOWN'}, {'RIGHT'}}
+  local f = 180
+  for k, mv in ipairs(moves) do
+    for _, b in ipairs(mv) do at(f, function(a, n) a.press(a.B[b], 4) end) f = f + 15 end
+    at(f, function(a, n) a.press(a.B.CROSS, 4) end) f = f + 25
+    at(f, function(a, n) a.press(a.B.DOWN, 4) end) f = f + 15
+    at(f, function(a, n) a.press(a.B.CROSS, 4) end) f = f + 60
+    at(f, function(a, n) a.shot('inv' .. k) end) f = f + 5
+    at(f, function(a, n) a.press(a.B.TRIANGLE, 4) end) f = f + 40
+    at(f, function(a, n) a.press(a.B.TRIANGLE, 4) end) f = f + 30
+  end
+end
+if SCEN == 'opts' then
+  -- in-game options menu: hold Select, switch "quick slots" off, back to the game
+  local CFG = tonumber(os.getenv('HK_BASE'), 16) + 8
+  local function info(a, n, tag) a.L(string.format('%s F%d t0=%04x t1=%04x cfg=%02x%02x%02x%02x%02x%02x%02x', tag, n,
+      a.r16(0x801fec24), a.r16(0x801feca4), a.r8(CFG), a.r8(CFG+1), a.r8(CFG+2), a.r8(CFG+3), a.r8(CFG+4), a.r8(CFG+5), a.r8(CFG+6))) end
+  at(56, function(a, n) a.shot('o_before') a.vram('o_before') end)
+  at(60, function(a, n) info(a, n, 'START') a.press(a.B.SELECT, 200) end)
+  at(230, function(a, n) info(a, n, 'OPEN') a.shot('o_menu') a.vram('o_menu') end)
+  at(270, function(a, n) a.press(a.B.DOWN, 4) end)
+  at(290, function(a, n) a.press(a.B.CROSS, 4) end)
+  at(310, function(a, n) info(a, n, 'SWITCHED') a.shot('o_switched') end)
+  at(330, function(a, n) a.press(a.B.START, 4) end)
+  at(420, function(a, n) info(a, n, 'CLOSED') a.shot('o_after') a.vram('o_after') end)
+  at(430, function(a, n) a.press(a.B.L2, 30) end)
+  at(436, function(a, n) a.press(a.B.DOWN, 6) end)
+  at(520, function(a, n) info(a, n, 'L2DOWN_OFF') a.L(string.format('eq=%02x', a.r8(0x800c8689))) end)
+end
 if SCEN == 'dbg' then
   local FH = tonumber(os.getenv('HK_FRAMEHOOK'), 16); local HD = tonumber(os.getenv('HK_HUD'), 16)
   C = {fh=0, hd=0}
@@ -237,6 +290,26 @@ if SCEN == 'feat' then
   at(300, function(a, n) info(a, n, 'TURNED') a.shot('turned') end)
   at(330, function(a, n) info(a, n, 'AFTER') a.shot('after') end)
 end
+if SCEN == 'invbg' then
+  -- who rewrites the room background copy (0x801D10EC) around the inventory?
+  local seen = {}
+  at(50, function(a, n)
+    PCSX.settings.emulator.Debug.Debug = true
+    BGW = PCSX.addBreakpoint(0x801d10ec, 'Write', 0x25800, 'bg', function()
+      local r = PCSX.getRegisters()
+      local k = string.format('%08x/%08x', r.pc, r.GPR.n.ra)
+      if not seen[k] then seen[k] = true a.L(string.format('BGWRITE pc=%s F%d sp=%08x', k, FR, r.GPR.n.sp)) end
+    end)
+    LDBP = PCSX.addBreakpoint(0x80014b1c, 'Exec', 4, 'ld', function()
+      local r = PCSX.getRegisters()
+      a.L(string.format('LOADFILE a0=%08x a1=%08x ra=%08x F%d', r.GPR.n.a0, r.GPR.n.a1, r.GPR.n.ra, FR)) end)
+    SIBP = PCSX.addBreakpoint(0x80064408, 'Exec', 4, 'si', function()
+      local r = PCSX.getRegisters()
+      a.L(string.format('STOREIMAGE a1=%08x ra=%08x F%d', r.GPR.n.a1, r.GPR.n.ra, FR)) end)
+  end)
+  at(60, function(a, n) a.L('OPEN') a.press(a.B.START, 6) end)
+  at(160, function(a, n) a.L('CLOSE') a.press(a.B.START, 6) end)
+end
 if SCEN == 'padmap' then
   local seq = {'SQUARE','DOWN','UP','LEFT','RIGHT','CROSS','R1','TRIANGLE','CIRCLE','L1','R2','L2'}
   for k, b in ipairs(seq) do
@@ -301,6 +374,22 @@ if SCEN == 'wbp' then
   end)
   at(60, function(a, n) a.press(a.B.L2, 30) end)
   at(66, function(a, n) a.press(a.B.DOWN, 6) end)
+end
+-- DEAD_RANGES="a:b,a:b" : exec + write breakpoints over code believed dead
+if (os.getenv('DEAD_RANGES') or '') ~= '' then
+  DEADBP = {}
+  at(15, function(a, n)
+    PCSX.settings.emulator.Debug.Debug = true
+    for r in os.getenv('DEAD_RANGES'):gmatch('[^,]+') do
+      local lo, hi = r:match('(%x+):(%x+)'); lo = tonumber(lo, 16); hi = tonumber(hi, 16)
+      for _, kind in ipairs({'Exec', 'Write'}) do
+        DEADBP[#DEADBP + 1] = PCSX.addBreakpoint(lo, kind, hi - lo, 'dead', function()
+          local rg = PCSX.getRegisters()
+          a.L(string.format('DEADHIT %s pc=%08x ra=%08x range=%08x', kind, rg.pc, rg.GPR.n.ra, lo)) end)
+      end
+    end
+    a.L('DEAD watch on')
+  end)
 end
 local LAST = tonumber(os.getenv('HK_LAST') or '340')
 return { step = function(n, a)

@@ -7,15 +7,20 @@ Un mod de gameplay pour **Resident Evil – Director's Cut (PlayStation)** qui a
 - **Cases rapides L2 + croix** : équiper une arme ou se soigner sans ouvrir l'inventaire
 - **Overlay des cases rapides** : en maintenant L2, les quatre cases en bas de l'écran
 - **Vie** en haut à gauche, dans la couleur de l'état du jeu (Bien / Attention / Danger)
-- **Arme équipée et munitions** sous la vie
+- **Arme équipée et munitions** sous la vie : balles chargées, et munitions de ce type portées (toutes les piles additionnées)
 - **Demi-tour** : Carré + Bas, comme dans RE3
 - **Déplacer les objets dans l'inventaire** : Carré pour prendre un objet, Carré pour l'échanger avec un autre
+- **Menu d'options en jeu** : maintiens Select environ 3 secondes, le jeu se fige sur sa dernière image et tu actives ou désactives chaque option
 
-Chaque option s'active ou se désactive dans le patcheur.
+Chaque option s'active ou se désactive dans le patcheur, et en jeu avec le menu d'options.
 
 | En jeu (L2 maintenu) | Inventaire |
 |---|---|
 | ![Vie et overlay](docs/img/ingame-overlay.png) | ![Objet pris](docs/img/inventory-pick.png) |
+
+| Menu d'options (Select maintenu) | Arme, balles chargées + munitions portées |
+|---|---|
+| ![Menu d'options](docs/img/options-menu.png) | ![Munitions](docs/img/ingame-ammo.png) |
 
 ![Couleurs de la vie](docs/img/hp-colours.png)
 
@@ -56,6 +61,7 @@ Applique le xdelta de ta version, dans [`patch/`](patch/), sur le `.bin` d'origi
 | En jeu | **L2 + ↑ / ↓ / ← / →** | utilise la case 1 / 2 / 3 / 4 : une arme est équipée, un soin (spray, plantes, mélanges, sérum) est utilisé |
 | En jeu | **L2** maintenu | overlay des cases ; la croix ne fait plus marcher |
 | En jeu | **Carré + Bas** | demi-tour |
+| En jeu | **Select** maintenu ~3 s | menu d'options : **Haut / Bas** choisir, **Croix** (ou Gauche / Droite) changer, **Start** retour au jeu |
 | Inventaire | **Carré** sur un objet, puis **Carré** sur un autre | les échange (l'arme équipée suit son objet) ; Carré sur le même objet ou la fermeture du menu annule |
 
 Les cases rapides sont les quatre cases du haut de l'inventaire (le carré 2×2) ; le mod dessine une flèche translucide sur chacune.
@@ -65,6 +71,7 @@ Les cases rapides sont les quatre cases du haut de l'inventaire (le carré 2×2)
 - Pas d'action rapide en visée, pendant une animation (escalier, ramassage, porte), une cinématique, ni quand le perso est au sol.
 - Carré n'échange que deux cases occupées : le jeu exige un inventaire sans trou.
 - L'affichage est masqué dans les menus, les cinématiques et les portes.
+- Les changements du menu d'options ne sont pas sauvegardés : le choix du patcheur revient au démarrage suivant.
 - Testé avec Jill sur les trois versions dans PCSX-Redux (OpenBIOS ; démarrage vérifié aussi avec le BIOS Sony SCPH-5502), et la version FR sur émulateur avec un BIOS Sony. Pas encore testé sur console, ni avec Chris (6 cases) et Rebecca : les retours sont les bienvenus.
 
 ## Fonctionnement
@@ -73,7 +80,8 @@ Les cases rapides sont les quatre cases du haut de l'inventaire (le carré 2×2)
 - Trois appels du jeu sont redirigés : la boucle principale après la lecture de la manette (commandes), le dessin de la grille d'inventaire (flèches, surbrillance), et la boucle principale une fois la table d'affichage de l'image terminée (HUD, overlay).
 - Le HUD et l'overlay sont des primitives GPU construites par le mod, avec des textures que le jeu garde en VRAM pendant la partie (chiffres de l'inventaire, cache d'icônes d'objets).
 - Le changement d'arme tourne dans une tâche du jeu, comme l'inventaire. Les sons de l'arme passent par le tampon du modèle d'arme au lieu du tampon qu'utilise l'inventaire : en jeu, celui-ci contient la copie du décor de la salle, et y charger quoi que ce soit laisse des stries en haut de l'écran.
-- Chaque option est un octet de la table `config` au début du bloc, écrit par le patcheur.
+- Chaque option est un octet de la table `config` au début du bloc, écrit par le patcheur et changé par le menu d'options.
+- Le menu d'options et l'overlay sont dans une deuxième zone : du code du jeu que rien ne peut atteindre (fonctions de bibliothèque jamais appelées, trouvées par `tools/re/deadcode.py` et vérifiées dans l'émulateur). La police du menu est la nôtre (`src/font.py`), chargée en VRAM le temps du menu (la VRAM qu'elle couvre est sauvegardée puis remise). L'image figée est copiée dans la copie du décor que le jeu redessine à chaque image ; à la sortie, le jeu recharge le vrai décor, comme après l'inventaire.
 
 Organisation des sources (`src/`) :
 
@@ -81,7 +89,8 @@ Organisation des sources (`src/`) :
 |---|---|
 | `hotkey.S` | démarrage, `config`, les trois accroches |
 | `lib.S` | tests d'état du jeu, primitives GPU, nombres |
-| `feat_menu_move.S`, `feat_quickslots.S`, `feat_overlay.S`, `feat_hud.S`, `feat_quickturn.S` | un fichier par option, à réutiliser librement |
+| `feat_menu_move.S`, `feat_quickslots.S`, `feat_overlay.S`, `feat_hud.S`, `feat_quickturn.S`, `feat_options.S` | un fichier par option, à réutiliser librement |
+| `font.py` | la police 5x7 du menu d'options |
 | `game.h` | ce que le mod utilise du jeu (noms, champs, constantes) |
 | `versions.py` | les adresses de chaque version + constantes du disque (`version.h` en est généré) |
 | `build.py` | toute la construction |

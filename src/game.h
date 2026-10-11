@@ -101,6 +101,10 @@
 #define ST_LOCK         3
 #define ST_YBIAS        4               /* halfword: y added to our primitives (frame_hook) */
 #define ST_MENU         6               /* TASK_PC_RESUME: frames left since the grid was drawn */
+#define ST_OPT          8               /* options menu open */
+#define ST_OPTCUR       9               /* options menu: selected line */
+#define ST_SELCNT       10              /* frames with Select held */
+#define ST_OPTLOCK      11              /* options menu just closed: pad hidden until released */
 
 /* config byte numbers (the patcher writes the bytes at _start + 8 + n) */
 #define C_MENU_MOVE     0
@@ -109,3 +113,4 @@
 #define C_HUD_HP        3
 #define C_HUD_AMMO      4
 #define C_QUICKTURN     5
+#define C_OPTIONS       6

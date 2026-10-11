@@ -14,6 +14,7 @@ VERSIONS = {
         'exe_lba': 287669, 'exe_sectors': 320,
         'cue_tracks': '  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n',
         'chd': "Resident Evil - Director's Cut (France) [SLES_009.70].chd",
+        'lang': 'fr',
         'addr': {
             'GAME_ENTRY': 0x800606a8, 'LOOP_NEXT': 0x80032edc, 'F_PAL_ANIM': 0x80015c0c, 'F_GRID_DRAW': 0x80054f3c,
             'SITE_HOOK': 0x80032084, 'SITE_FRAME': 0x80032740, 'SITE_GRID': 0x80054c9c,
@@ -24,6 +25,10 @@ VERSIONS = {
             'COND_COLOURS': 0x80091ccc, 'SLOT_XY': 0x80092e68,
             'PKT_PTR': 0x800b7978, 'MENU_OFS': 0x800b8e92, 'MENU_WORK': 0x800b90e0,
             'INV_PTR': 0x800bb108, 'ICON_CACHE': 0x800bb1e8, 'PAD': 0x800cfc04,
+            'F_LOAD_IMAGE': 0x800643a4, 'F_STORE_IMAGE': 0x80064408, 'F_DRAW_SYNC': 0x800640e0,
+            'F_BG_RELOAD': 0x80017a4c,
+            # unreachable game code (tools/re/deadcode.py, checked in PCSX-Redux)
+            'OPT_CODE': 0x8008749c, 'OPT_CODE_SIZE': 3196, 'VRAM_SAVE': 0x800142f8, 'FONT_RAM': 0x800628a0,
         },
     },
     'us': {
@@ -33,6 +38,7 @@ VERSIONS = {
         'exe_lba': 282051, 'exe_sectors': 318,
         'cue_tracks': '  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n',
         'chd': "Resident Evil - Director's Cut (USA).chd",
+        'lang': 'en',
         'addr': {
             'GAME_ENTRY': 0x8005ef34, 'LOOP_NEXT': 0x80032074, 'F_PAL_ANIM': 0x80015df8, 'F_GRID_DRAW': 0x80053a18,
             'SITE_HOOK': 0x80031378, 'SITE_FRAME': 0x80031a1c, 'SITE_GRID': 0x80053780,
@@ -43,6 +49,9 @@ VERSIONS = {
             'COND_COLOURS': 0x80090b94, 'SLOT_XY': 0x80091d30,
             'PKT_PTR': 0x800b6878, 'MENU_OFS': 0x800b7d92, 'MENU_WORK': 0x800b7fe0,
             'INV_PTR': 0x800ba008, 'ICON_CACHE': 0x800ba0e8, 'PAD': 0x800cf844,
+            'F_LOAD_IMAGE': 0x80063520, 'F_STORE_IMAGE': 0x80063584, 'F_DRAW_SYNC': 0x8006325c,
+            'F_BG_RELOAD': 0x80017c2c,
+            'OPT_CODE': 0x8008674c, 'OPT_CODE_SIZE': 3196, 'VRAM_SAVE': 0x800144f8, 'FONT_RAM': 0x80061a1c,
         },
     },
     'usds': {
@@ -54,6 +63,7 @@ VERSIONS = {
         'exe_lba': 293403, 'exe_sectors': 326,
         'cue_tracks': '  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n  TRACK 02 AUDIO\n    INDEX 00 65:18:30\n    INDEX 01 65:20:30\n',
         'chd': "Resident Evil - Director's Cut - Dual Shock Ver. (USA).chd",
+        'lang': 'en',
         # the task yield stores its return address at task + 4: tasks can not be
         # recognised by their entry (see menu_open / game_running in lib.S)
         'defines': ['TASK_PC_RESUME'],
@@ -67,6 +77,9 @@ VERSIONS = {
             'COND_COLOURS': 0x80095a70, 'SLOT_XY': 0x80096c1c,
             'PKT_PTR': 0x800bae44, 'MENU_OFS': 0x800bc362, 'MENU_WORK': 0x800bc5a8,
             'INV_PTR': 0x800be8f0, 'ICON_CACHE': 0x800be9d0, 'PAD': 0x800cf844,
+            'F_LOAD_IMAGE': 0x80065434, 'F_STORE_IMAGE': 0x80065498, 'F_DRAW_SYNC': 0x80065170,
+            'F_BG_RELOAD': 0x80017744,
+            'OPT_CODE': 0x8008899c, 'OPT_CODE_SIZE': 3196, 'VRAM_SAVE': 0x80014360, 'FONT_RAM': 0x80063930,
         },
     },
 }
