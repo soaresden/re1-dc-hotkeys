@@ -224,16 +224,18 @@ if SCEN == 'opts' then
   local function info(a, n, tag) a.L(string.format('%s F%d t0=%04x t1=%04x cfg=%02x%02x%02x%02x%02x%02x%02x', tag, n,
       a.r16(0x801fec24), a.r16(0x801feca4), a.r8(CFG), a.r8(CFG+1), a.r8(CFG+2), a.r8(CFG+3), a.r8(CFG+4), a.r8(CFG+5), a.r8(CFG+6))) end
   at(56, function(a, n) a.shot('o_before') a.vram('o_before') end)
-  at(60, function(a, n) info(a, n, 'START') a.press(a.B.SELECT, 200) end)
-  at(230, function(a, n) info(a, n, 'OPEN') a.shot('o_menu') a.vram('o_menu') end)
-  at(270, function(a, n) a.press(a.B.DOWN, 4) end)
-  at(290, function(a, n) a.press(a.B.CROSS, 4) end)
-  at(310, function(a, n) info(a, n, 'SWITCHED') a.shot('o_switched') end)
-  at(330, function(a, n) a.press(a.B.START, 4) end)
-  at(420, function(a, n) info(a, n, 'CLOSED') a.shot('o_after') a.vram('o_after') end)
-  at(430, function(a, n) a.press(a.B.L2, 30) end)
-  at(436, function(a, n) a.press(a.B.DOWN, 6) end)
-  at(520, function(a, n) info(a, n, 'L2DOWN_OFF') a.L(string.format('eq=%02x', a.r8(0x800c8689))) end)
+  -- 5 s of Select: 250 vsyncs in PAL, 300 in NTSC (hold 340)
+  at(60, function(a, n) info(a, n, 'START') a.press(a.B.SELECT, 340) end)
+  at(240, function(a, n) info(a, n, 'NOT_YET') end)
+  at(410, function(a, n) info(a, n, 'OPEN') a.shot('o_menu') a.vram('o_menu') end)
+  at(450, function(a, n) a.press(a.B.DOWN, 4) end)
+  at(470, function(a, n) a.press(a.B.CROSS, 4) end)
+  at(490, function(a, n) info(a, n, 'SWITCHED') a.shot('o_switched') end)
+  at(510, function(a, n) a.press(a.B.START, 4) end)
+  at(600, function(a, n) info(a, n, 'CLOSED') a.shot('o_after') a.vram('o_after') end)
+  at(610, function(a, n) a.press(a.B.L2, 30) end)
+  at(616, function(a, n) a.press(a.B.DOWN, 6) end)
+  at(700, function(a, n) info(a, n, 'L2DOWN_OFF') a.L(string.format('eq=%02x', a.r8(0x800c8689))) end)
 end
 if SCEN == 'dbg' then
   local FH = tonumber(os.getenv('HK_FRAMEHOOK'), 16); local HD = tonumber(os.getenv('HK_HUD'), 16)

@@ -1,4 +1,4 @@
-/* Feature options: in game, hold Select for about 3 seconds to pause the
+/* Feature options: in game, hold Select for 5 seconds to pause the
    game and open the options menu over the last game frame:
      Up / Down         choose a mod option
      Cross, Left/Right switch it on / off
@@ -23,7 +23,7 @@
 
    Needs: hook (input), frame_hook (drawing), lib.S */
 
-#define OPT_HOLD        75              /* game frames with Select held */
+#define OPT_HOLD        (5 * GAME_FPS)  /* game frames with Select held: 5 seconds */
 #define OPT_COUNT       7               /* options listed: config bytes of opt_cfg (not this menu) */
 #define FONT_GLYPHS     42              /* len(src/font.py CHARS), checked by build.py */
 #define BG_COPY         0x801d10ec      /* room background copy, 320x240 */

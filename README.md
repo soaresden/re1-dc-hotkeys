@@ -1,6 +1,6 @@
 # Resident Evil Director's Cut — Quick slots, HUD & quick turn (PS1)
 
-*[Version française](README.fr.md)*
+*[Version française](README.fr.md) · [Changelog](CHANGELOG.md) · [Online patcher](https://soaresden.github.io/re1-dc-hotkeys/)*
 
 A gameplay mod for **Resident Evil – Director's Cut (PlayStation)** that adds modern conveniences without touching a single texture:
 
@@ -11,17 +11,17 @@ A gameplay mod for **Resident Evil – Director's Cut (PlayStation)** that adds 
 - **Quick turn** — Square + Down, like in RE3
 - **Quick reload** — R1 + Circle fills the equipped weapon from the ammo you carry
 - **Move items in the inventory** — Square to pick an item up, Square again to swap it with another one
-- **In-game options menu** — hold Select for about 3 seconds: the game pauses on its last frame and you switch any of the above on or off
+- **In-game options menu** — hold Select for 5 seconds: the game pauses on its last frame and you switch any of the above on or off
 
 Every feature can be switched on or off in the patcher, and in game with the options menu.
 
-| In game (L2 held) | Inventory |
+| In game (L2 held) | Options menu (hold Select 5 s) |
 |---|---|
-| ![HUD and overlay](docs/img/ingame-overlay.png) | ![Picking an item](docs/img/inventory-pick.png) |
+| ![HUD and overlay](docs/img/ingame-overlay-us.png) | ![Options menu](docs/img/options-menu.png) |
 
-| Options menu (hold Select) | Weapon, loaded ammo + carried ammo |
+| Quick reload (R1 + Circle): loaded + carried ammo | Inventory: Square moves items, arrows on the quick slots |
 |---|---|
-| ![Options menu](docs/img/options-menu.png) | ![Ammo](docs/img/ingame-ammo.png) |
+| ![Quick reload](docs/img/quick-reload.png) | ![Picking an item](docs/img/inventory-pick.png) |
 
 ![Health colours](docs/img/hp-colours.png)
 
@@ -63,7 +63,7 @@ Apply the [`patch/`](patch/) xdelta of your version to the original `.bin` with 
 | In game | hold **L2** | quick-slot overlay; the d-pad no longer moves the character |
 | In game | **Square + Down** | 180° quick turn |
 | In game | **R1 + Circle** | reload the equipped weapon up to its capacity (Beretta 15, shotgun / Colt / bazooka 6) from the ammo of its type you carry |
-| In game | hold **Select** ~3 s | options menu: **Up / Down** choose, **Cross** (or Left / Right) switch, **Start** back to the game |
+| In game | hold **Select** 5 s | options menu: **Up / Down** choose, **Cross** (or Left / Right) switch, **Start** (or Triangle / Select) back to the game |
 | Inventory | **Square** on an item, then **Square** on another | swap them (the equipped weapon follows its item); Square on the same item or closing the menu cancels |
 
 The quick slots are the four top cells of the inventory (the 2×2 square); the mod draws a translucent arrow on each of them.

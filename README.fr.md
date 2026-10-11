@@ -1,6 +1,6 @@
 # Resident Evil Director's Cut — Cases rapides, HUD et demi-tour (PS1)
 
-*[English version](README.md)*
+*[English version](README.md) · [Historique des versions](CHANGELOG.fr.md) · [Patcheur en ligne](https://soaresden.github.io/re1-dc-hotkeys/)*
 
 Un mod de gameplay pour **Resident Evil – Director's Cut (PlayStation)** qui ajoute du confort moderne sans toucher à une seule texture :
 
@@ -11,17 +11,17 @@ Un mod de gameplay pour **Resident Evil – Director's Cut (PlayStation)** qui a
 - **Demi-tour** : Carré + Bas, comme dans RE3
 - **Rechargement rapide** : R1 + Rond remplit l'arme équipée avec les munitions portées
 - **Déplacer les objets dans l'inventaire** : Carré pour prendre un objet, Carré pour l'échanger avec un autre
-- **Menu d'options en jeu** : maintiens Select environ 3 secondes, le jeu se fige sur sa dernière image et tu actives ou désactives chaque option
+- **Menu d'options en jeu** : maintiens Select 5 secondes, le jeu se fige sur sa dernière image et tu actives ou désactives chaque option
 
 Chaque option s'active ou se désactive dans le patcheur, et en jeu avec le menu d'options.
 
-| En jeu (L2 maintenu) | Inventaire |
+| En jeu (L2 maintenu) | Menu d'options (Select maintenu 5 s) |
 |---|---|
-| ![Vie et overlay](docs/img/ingame-overlay.png) | ![Objet pris](docs/img/inventory-pick.png) |
+| ![Vie et overlay](docs/img/ingame-overlay.png) | ![Menu d'options](docs/img/options-menu.png) |
 
-| Menu d'options (Select maintenu) | Arme, balles chargées + munitions portées |
+| Arme, balles chargées + munitions portées | Inventaire : Carré déplace les objets, flèches sur les cases rapides |
 |---|---|
-| ![Menu d'options](docs/img/options-menu.png) | ![Munitions](docs/img/ingame-ammo.png) |
+| ![Munitions](docs/img/ingame-ammo.png) | ![Objet pris](docs/img/inventory-chris.png) |
 
 ![Couleurs de la vie](docs/img/hp-colours.png)
 
@@ -63,7 +63,7 @@ Applique le xdelta de ta version, dans [`patch/`](patch/), sur le `.bin` d'origi
 | En jeu | **L2** maintenu | overlay des cases ; la croix ne fait plus marcher |
 | En jeu | **Carré + Bas** | demi-tour |
 | En jeu | **R1 + Rond** | recharge l'arme équipée jusqu'à sa capacité (Beretta 15, fusil / Colt / bazooka 6) avec les munitions de ce type portées |
-| En jeu | **Select** maintenu ~3 s | menu d'options : **Haut / Bas** choisir, **Croix** (ou Gauche / Droite) changer, **Start** retour au jeu |
+| En jeu | **Select** maintenu 5 s | menu d'options : **Haut / Bas** choisir, **Croix** (ou Gauche / Droite) changer, **Start** (ou Triangle / Select) retour au jeu |
 | Inventaire | **Carré** sur un objet, puis **Carré** sur un autre | les échange (l'arme équipée suit son objet) ; Carré sur le même objet ou la fermeture du menu annule |
 
 Les cases rapides sont les quatre cases du haut de l'inventaire (le carré 2×2) ; le mod dessine une flèche translucide sur chacune.
