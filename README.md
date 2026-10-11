@@ -9,6 +9,7 @@ A gameplay mod for **Resident Evil – Director's Cut (PlayStation)** that adds 
 - **Health display** — top left, in the colour of the game's own condition (Fine / Caution / Danger)
 - **Equipped weapon & ammo** — under the health: loaded ammo, and the ammo of that type you carry (all stacks added up)
 - **Quick turn** — Square + Down, like in RE3
+- **Quick reload** — R1 + Circle fills the equipped weapon from the ammo you carry
 - **Move items in the inventory** — Square to pick an item up, Square again to swap it with another one
 - **In-game options menu** — hold Select for about 3 seconds: the game pauses on its last frame and you switch any of the above on or off
 
@@ -61,6 +62,7 @@ Apply the [`patch/`](patch/) xdelta of your version to the original `.bin` with 
 | In game | **L2 + ↑ / ↓ / ← / →** | use quick slot 1 / 2 / 3 / 4: a weapon is equipped, a healing item (spray, herbs, mixes, serum) is used |
 | In game | hold **L2** | quick-slot overlay; the d-pad no longer moves the character |
 | In game | **Square + Down** | 180° quick turn |
+| In game | **R1 + Circle** | reload the equipped weapon up to its capacity (Beretta 15, shotgun / Colt / bazooka 6) from the ammo of its type you carry |
 | In game | hold **Select** ~3 s | options menu: **Up / Down** choose, **Cross** (or Left / Right) switch, **Start** back to the game |
 | Inventory | **Square** on an item, then **Square** on another | swap them (the equipped weapon follows its item); Square on the same item or closing the menu cancels |
 

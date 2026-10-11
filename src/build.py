@@ -32,7 +32,8 @@ PPF_DESC = 'RE1 DC - quick slots, HUD, quick turn'
 # title, the 6 options (config bytes 0..5), on / off, help ('[]' = Square)
 MENU_TEXT = ['MOD OPTIONS', 'MENU - MOVE ITEMS WITH []', 'L2 - HOTKEYS', 'OVERLAY - L2 SHORTCUTS',
              'OVERLAY - HP', 'OVERLAY - GUN AND AMMO', 'QUICK TURN WITH DOWN+SQUARE',
-             'ON', 'OFF', 'X: SWITCH   START: BACK']
+             'QUICK RELOAD WITH R1+O', 'ON', 'OFF', 'X: SWITCH   START: BACK']
+MENU_LINES = 7                    # = OPT_COUNT in feat_options.S
 
 
 def menu_files(vid):
@@ -44,8 +45,9 @@ def menu_files(vid):
     open(vdir(vid, 'font.inc'), 'w', newline='\n').write(font.asm())
     t = MENU_TEXT
     enc = lambda s: ', '.join(str(g) for g in font.encode(s) + [0xff])
-    out = ['opt_labels:'] + ['        .word str_opt%d' % i for i in range(6)]
-    names = ['str_title'] + ['str_opt%d' % i for i in range(6)] + ['str_on', 'str_off', 'str_help']
+    out = ['opt_labels:'] + ['        .word str_opt%d' % i for i in range(MENU_LINES)]
+    names = ['str_title'] + ['str_opt%d' % i for i in range(MENU_LINES)] + ['str_on', 'str_off', 'str_help']
+    assert len(names) == len(t)
     for name, text in zip(names, t):
         out.append('%s: .byte %s   /* %s */' % (name, enc(text), text))
     out.append('str_cursor: .byte %s' % enc('>'))
@@ -187,7 +189,7 @@ def patch_version(vid, args):
         # relative names: xdelta3 stores them in its header
         run(exe_tool('xdelta', 'xdelta3*.exe', 'xdelta3'), '-e', '-9', '-s', 'orig.bin', 'patched.bin', xdelta, cwd=vdir(vid))
         # the .ppf holds the shifted executable: local use only (not published)
-        run(sys.executable, os.path.join(SRC, 'make_ppf.py'), b('orig.bin'), b('patched.bin'), b('patched.ppf'), PPF_DESC)
+        run(sys.executable, os.path.join(SRC, 'make_ppf.py'), b('orig.bin'), b('patched.bin'), b('hotkeys.ppf'), PPF_DESC)
         print('%-5s xdelta %s' % (vid, sha1(xdelta)))
     if '--chd' in args:
         chd = os.path.join(ROOT, stem + ' [Hotkeys].chd')

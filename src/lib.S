@@ -147,11 +147,18 @@ menu_offset:
         subu    $s3, $t3, $t4
 
 /* a0 = slot -> t8 = screen x, t9 = screen y of its 40x30 inventory cell
-   (needs s2, s3 from menu_offset) */
+   (needs s2, s3 from menu_offset). With 6 slots (Chris) the grid starts
+   2 cells lower in SLOT_XY, as the game's grid draw does. */
 cell_origin:
-        lui     $t1, (SLOT_XY >> 16)
-        addiu   $t1, $t1, (SLOT_XY & 0xffff)
+        lui     $t1, %hi(MW_LAYOUT)
+        lbu     $t1, %lo(MW_LAYOUT)($t1)
         addiu   $t2, $a0, 4
+        andi    $t1, $t1, 2
+        bnez    $t1, 1f
+        nop
+        addiu   $t2, $t2, 2
+1:      lui     $t1, (SLOT_XY >> 16)
+        addiu   $t1, $t1, (SLOT_XY & 0xffff)
         sll     $t2, $t2, 2
         addu    $t1, $t1, $t2
         lh      $t8, 0($t1)

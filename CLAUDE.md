@@ -14,6 +14,8 @@ Patch de **Resident Evil – Director's Cut**, trois versions : **FR SLES-00970*
 | 3 | hud_hp | `feat_hud.S` | En haut à gauche : croix + vie en chiffres, couleur de l'état du jeu (vert / jaune / orange / rouge). |
 | 4 | hud_ammo | `feat_hud.S` | Sous la vie : icône de l'arme équipée (demi-taille) et munitions (rouge à 0, rien pour le couteau). |
 | 5 | quickturn | `feat_quickturn.S` | Carré + Bas : demi-tour en 8 images de jeu (comme RE3). |
+| 6 | options | `feat_options.S` | Select maintenu ~3 s : menu en jeu (pause, image figée) pour basculer les autres options. |
+| 7 | reload | `feat_reload.S` | R1 + Rond : remplit l'arme équipée (capacités `reload_cap` : Beretta 15, fusil / Colt / bazooka 6, à confirmer en jeu) avec les munitions `ammo_of` portées ; pile vide retirée + F_COMPACT. |
 
 Distribution : xdelta par version (toutes les options) et **patcheur HTML** (`patcher/RE1-Hotkeys-Patcher.html` + GitHub Pages `docs/index.html`, FR/EN, détecte la version par la taille du .bin puis le CRC de l'exe). Le patch ne touche que l'exécutable. Dépôt public : https://github.com/soaresden/re1-dc-hotkeys (pas de données du jeu : ni CHD, ni .ppf, ni save states).
 
@@ -26,7 +28,7 @@ Testé dans PCSX-Redux (OpenBIOS) avec Jill, sur les **trois versions** (scénar
 ## Contenu du dossier
 
 - CHD d'origine à la racine (noms dans `versions.py`, champ `chd`) : jamais modifiés, ignorés par git. Ils peuvent être retirés : `build/<version>/orig.bin` suffit.
-- `patch/` : un `.xdelta` par version (toutes options). Les `.ppf` (contiennent l'exe décalé) restent dans `build/<version>/patched.ppf`, non publiés.
+- `patch/` : un `.xdelta` par version (toutes options). Les `.ppf` (contiennent l'exe décalé) restent dans `build/<version>/hotkeys.ppf`, non publiés.
 - `patcher/RE1-Hotkeys-Patcher.html` et `docs/index.html` : patcheur généré (ne pas éditer à la main).
 - `src/` :
   - `hotkey.S` (démarrage, `config`, les 3 accroches) + `lib.S` + un `feat_*.S` par fonction ; `game.h` : noms, champs, constantes ; **aucune adresse en dur** : tout vient de `build/<version>/version.h` ;
@@ -45,7 +47,7 @@ Testé dans PCSX-Redux (OpenBIOS) avec Jill, sur les **trois versions** (scénar
 1. extrait `orig.bin` du CHD si besoin, vérifie son SHA1, extrait l'exe du BIN ;
 2. génère `version.h` (adresses + `TAIL_START`, `BLOCK_SIZE`), `make_tail.py`, cpp (`-I build/<v>`), `fix_delay.py`, as, ld, objcopy → `hotkey.bin`, vérification objdump (load delays, branchements dans un délai) ; refus si le bloc dépasse 0x1800 ;
 3. `build_patch.py` : vérifie qu'à chaque site l'instruction d'origine est le `jal` attendu, puis `patched.bin` + `.cue` ;
-4. `patch/<nom> [Hotkeys].xdelta` (xdelta3 lancé depuis `build/<v>/`, noms relatifs) et `patched.ppf` local ;
+4. `patch/<nom> [Hotkeys].xdelta` (xdelta3 lancé depuis `build/<v>/`, noms relatifs) et `hotkeys.ppf` local ;
 5. `--chd` : CHD patchés à la racine ;
 6. le patcheur, avec toutes les versions construites.
 
@@ -152,6 +154,10 @@ Manette mappée : Carré (course) 0x0200, ↓ 0x0024, ↑ 0x0011, ← 0x0008, �
 Select maintenu `OPT_HOLD` (75) images de jeu : `opt_open` suspend la tâche de jeu, StoreImage du tampon de `Y_OFFSET` (dernière image dessinée) vers 0x801D10EC (copie du décor, redessinée par la boucle à chaque image : l'image figée reste), sauvegarde la VRAM sous la police (rect (896,496,42,16) + CLUT (944,496)) dans `VRAM_SAVE`, décompresse la police 1 bpp (`src/font.py`, 42 glyphes, sans J ni Z) en 4 bpp dans `FONT_RAM` et la charge. Haut/Bas, Croix/Gauche/Droite (bascule `config[0..5]`), Start/Triangle/Select (sortie). `opt_close` remet la VRAM, lance une tâche (slot 1) qui appelle `F_BG_RELOAD` (rechargement du décor depuis le CD, comme à la sortie de l'inventaire) puis reprend la tâche de jeu ; `ST_OPTLOCK` cache la manette au jeu jusqu'au relâchement. Dessin : panneau F4 noir à 50 % (E1 abr 0), texte en SPRT_8 (0x74, couleur = teinte), page de texture `MODE_FONT`. Libellés anglais dans toutes les versions (`build.py` MENU_TEXT → `build/<v>/strings.inc`, police → `font.inc`).
 
 **Deuxième zone de code `.text2`** à `OPT_CODE` (code mort de 3196 o, `link.ld` généré par version) : overlay + menu (~2,6 Ko). `build_patch.py` l'écrit en place dans l'image, le patcheur aussi (`code2`, `code2Addr`). Plages mortes trouvées par `tools/re/deadcode.py` (atteignabilité depuis toutes les références possibles) : FR 0x8008749C (3196, code), 0x800142F8 (1736, `VRAM_SAVE`), 0x800628A0 (1716, `FONT_RAM`), 0x8005CB3C (1468, libre) ; mêmes tailles en US/DS (`versions.py`). Vérifiées dans PCSX-Redux : démarrage à froid FR avec surveillance exécution/lecture/écriture (seul le BIOS y écrit, au chargement de l'exe), scénarios FR/US/DS (`DEAD_RANGES=...`).
+
+**Grille de 6 cases (Chris)** : le jeu dessine la grille 2 cases plus bas dans SLOT_XY quand le bit 1 de `MW_LAYOUT` (MENU_WORK + 9, 0x800B90E9) est à 0 (Jill : 03, Chris : 00) ; `cell_origin` fait pareil. Le curseur (`MW_CURSOR`) reste (case + 4) × 2 pour les deux. Save state `build/dining_chris.sstate` (couteau, spray).
+
+**PPF local renommé `hotkeys.ppf`** : PCSX-Redux (et DuckStation) appliquent tout seuls un `.ppf` de même nom que l'image ; `patched.ppf` à côté de `patched.bin` réappliquait un ancien patch aux démarrages à froid.
 
 **HUD munitions** : à côté des balles chargées (vert), réserve en bleu = somme des quantités des objets `ammo_of[arme]` de l'inventaire (table dans feat_hud.S : Beretta 0x0B, fusil 0x0C, Colt Python 0x04 → 0x0E, 0x05 → 0x0D, bazookas 0x07/08/09 → 0x10/11/12 ; liste d'objets donnée par Denis).
 

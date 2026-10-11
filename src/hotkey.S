@@ -11,7 +11,8 @@
      3 hud_hp      feat_hud.S         health top left, coloured like the condition
      4 hud_ammo    feat_hud.S         equipped weapon + ammo under it
      5 quickturn   feat_quickturn.S   Square + Down: 180 degree turn
-     6 options     feat_options.S     hold Select: in-game menu to switch 0..5
+     6 options     feat_options.S     hold Select: in-game menu to switch the others
+     7 reload      feat_reload.S      R1 + Circle: fill the weapon from the ammo carried
    Shared code: lib.S (game state tests, primitives, numbers).
 
    Three calls of the game are redirected (src/build_patch.py):
@@ -29,7 +30,7 @@ _start:
         nop
         .globl config
 config:
-        .byte   1, 1, 1, 1, 1, 1, 1, 0
+        .byte   1, 1, 1, 1, 1, 1, 1, 1
 
 boot:
         /* the last BLOCK_SIZE bytes of the original image (from TAIL_START)
@@ -100,9 +101,14 @@ hook:
         jal     quickslot_input
         nop
 2:      CFG($t0, C_QUICKTURN)
-        beqz    $t0, 9f
+        beqz    $t0, 4f
         nop
         jal     quickturn_input
+        nop
+4:      CFG($t0, C_RELOAD)
+        beqz    $t0, 9f
+        nop
+        jal     reload_input
         nop
 9:      lw      $ra, 0x14($sp)
         addiu   $sp, $sp, 0x18
@@ -221,6 +227,7 @@ draw_hook:
         .globl opt_start
 opt_start:
 #include "feat_overlay.S"
+#include "feat_reload.S"
 #include "feat_options.S"
 
         .globl code_end

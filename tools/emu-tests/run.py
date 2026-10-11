@@ -41,11 +41,14 @@ def to_png(outdir):
         if m:
             name, w, h, bpp = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
             d = open(os.path.join(outdir, name + '.raw'), 'rb').read()
-            if bpp == 1:
-                im = Image.frombytes('RGB', (w, h), d[:w * h * 3])
-            else:
-                im = rgb555(d, w, h)
-            im.save(os.path.join(outdir, name + '.png'))
+            try:                               # a shot overwritten while being read: skip it
+                if bpp == 1:
+                    im = Image.frombytes('RGB', (w, h), d[:w * h * 3])
+                else:
+                    im = rgb555(d, w, h)
+                im.save(os.path.join(outdir, name + '.png'))
+            except (ValueError, IndexError):
+                pass
         m = re.match(r'VRAM (\S+)', line)
         if m:
             d = open(os.path.join(outdir, m.group(1) + '.vram'), 'rb').read()

@@ -26,7 +26,7 @@ menu_move_input:
         bnez    $t5, 9f
         nop
         srl     $t6, $t6, 1
-        addiu   $t7, $t6, -4               /* t7 = cursor slot */
+        addiu   $t7, $t6, -4               /* t7 = cursor slot (same with 6 slots) */
         lui     $t9, %hi(INV_PTR)
         lw      $t9, %lo(INV_PTR)($t9)     /* inventory pointer */
         sll     $t4, $t7, 1

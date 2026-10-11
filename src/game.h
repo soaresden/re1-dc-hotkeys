@@ -43,8 +43,9 @@
 #define P_HP            (PLAYER + 0x88)
 #define P_HPMAX         (PLAYER + 0x175)
 #define MW_ITEM         (MENU_WORK + 0x0b)  /* item under the cursor */
+#define MW_LAYOUT       (MENU_WORK + 0x09)  /* bit 1 = 8-slot grid (Jill); 0: 6 slots (Chris), 2 cells lower */
 #define MW_GRID         (MENU_WORK + 0x10)  /* 1 = on the grid */
-#define MW_CURSOR       (MENU_WORK + 0x13)  /* (slot + 4) * 2 */
+#define MW_CURSOR       (MENU_WORK + 0x13)  /* (slot + 4) * 2, also with 6 slots */
 #define OT_MENU         0x800c88a0          /* + frame * 20: inventory OT descriptors */
 #define OT_SCENE        0x800c88c8          /* + frame * 20: scene OT descriptors */
 
@@ -114,3 +115,4 @@
 #define C_HUD_AMMO      4
 #define C_QUICKTURN     5
 #define C_OPTIONS       6
+#define C_RELOAD        7

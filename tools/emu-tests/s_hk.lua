@@ -173,6 +173,20 @@ if SCEN == 'stripes' then
   at(66, function(a, n) a.press(a.B.DOWN, 6) end)
   at(200, function(a, n) st(a, n, 'POST') a.vram('v_after') a.dump('r_after') a.shot('after') end)
 end
+if SCEN == 'reload' then
+  -- Beretta with 5 rounds, clips of 8 and 10: equip, then R1 + Circle -> 15, clips 0 (removed) and 8
+  local function inv(a, n, tag) local t = {} for k = 0, 7 do t[#t+1] = string.format('%02x%02x', a.r8(0x800c8784+2*k), a.r8(0x800c8785+2*k)) end
+    a.L(string.format('%s F%d eq=%02x count=%d inv=%s', tag, n, a.r8(0x800c8689), a.r8(0x800c8667), table.concat(t, ' '))) end
+  at(30, function(a, n)
+    a.w8(0x800c8787, 5) a.w8(0x800c878a, 0x0b) a.w8(0x800c878b, 8) a.w8(0x800c878c, 0x0b) a.w8(0x800c878d, 10) a.w8(0x800c8667, 5) end)
+  at(60, function(a, n) inv(a, n, 'START') a.press(a.B.L2, 30) end)
+  at(66, function(a, n) a.press(a.B.DOWN, 6) end)
+  at(200, function(a, n) inv(a, n, 'EQUIPPED') a.press(a.B.R1, 60) end)
+  at(230, function(a, n) a.press(a.B.CIRCLE, 6) end)
+  at(280, function(a, n) inv(a, n, 'RELOADED') a.shot('reloaded') end)
+  at(300, function(a, n) a.press(a.B.CIRCLE, 6) end)
+  at(330, function(a, n) inv(a, n, 'AGAIN') end)
+end
 if SCEN == 'ammo' then
   -- reserve ammo next to the loaded ammo: two clips in slots 3 and 4, equip the Beretta
   at(30, function(a, n)

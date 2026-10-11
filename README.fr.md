@@ -9,6 +9,7 @@ Un mod de gameplay pour **Resident Evil – Director's Cut (PlayStation)** qui a
 - **Vie** en haut à gauche, dans la couleur de l'état du jeu (Bien / Attention / Danger)
 - **Arme équipée et munitions** sous la vie : balles chargées, et munitions de ce type portées (toutes les piles additionnées)
 - **Demi-tour** : Carré + Bas, comme dans RE3
+- **Rechargement rapide** : R1 + Rond remplit l'arme équipée avec les munitions portées
 - **Déplacer les objets dans l'inventaire** : Carré pour prendre un objet, Carré pour l'échanger avec un autre
 - **Menu d'options en jeu** : maintiens Select environ 3 secondes, le jeu se fige sur sa dernière image et tu actives ou désactives chaque option
 
@@ -61,6 +62,7 @@ Applique le xdelta de ta version, dans [`patch/`](patch/), sur le `.bin` d'origi
 | En jeu | **L2 + ↑ / ↓ / ← / →** | utilise la case 1 / 2 / 3 / 4 : une arme est équipée, un soin (spray, plantes, mélanges, sérum) est utilisé |
 | En jeu | **L2** maintenu | overlay des cases ; la croix ne fait plus marcher |
 | En jeu | **Carré + Bas** | demi-tour |
+| En jeu | **R1 + Rond** | recharge l'arme équipée jusqu'à sa capacité (Beretta 15, fusil / Colt / bazooka 6) avec les munitions de ce type portées |
 | En jeu | **Select** maintenu ~3 s | menu d'options : **Haut / Bas** choisir, **Croix** (ou Gauche / Droite) changer, **Start** retour au jeu |
 | Inventaire | **Carré** sur un objet, puis **Carré** sur un autre | les échange (l'arme équipée suit son objet) ; Carré sur le même objet ou la fermeture du menu annule |
 

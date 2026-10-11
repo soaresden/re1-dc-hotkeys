@@ -24,7 +24,7 @@
    Needs: hook (input), frame_hook (drawing), lib.S */
 
 #define OPT_HOLD        75              /* game frames with Select held */
-#define OPT_COUNT       6               /* options listed: config bytes 0..5 (not this menu) */
+#define OPT_COUNT       7               /* options listed: config bytes of opt_cfg (not this menu) */
 #define FONT_GLYPHS     42              /* len(src/font.py CHARS), checked by build.py */
 #define BG_COPY         0x801d10ec      /* room background copy, 320x240 */
 #define FONT_X          896             /* VRAM, 16-bit units */
@@ -135,6 +135,9 @@ opt_input:
         beqz    $t1, 5f
         nop
         lbu     $t3, ST_OPTCUR($s0)
+        lui     $t4, %hi(opt_cfg)
+        addu    $t4, $t4, $t3
+        lbu     $t3, %lo(opt_cfg)($t4)     /* config byte of this line */
         lui     $t4, %hi(config)
         addiu   $t4, $t4, %lo(config)
         addu    $t4, $t4, $t3
@@ -375,8 +378,11 @@ options_draw:
         jal     draw_text
         move    $a1, $s1
         /* on / off */
-        lui     $t1, %hi(config)
+        lui     $t1, %hi(opt_cfg)
         addu    $t1, $t1, $s0
+        lbu     $t1, %lo(opt_cfg)($t1)
+        lui     $t2, %hi(config)
+        addu    $t1, $t1, $t2
         lbu     $t1, %lo(config)($t1)
         lui     $a2, %hi(str_off)
         addiu   $a2, $a2, %lo(str_off)
@@ -472,6 +478,7 @@ opt_code_end:
 
 /* ------------------------------------------------------------------ */
         .balign 4
+opt_cfg:        .byte C_MENU_MOVE, C_QUICKSLOTS, C_OVERLAY, C_HUD_HP, C_HUD_AMMO, C_QUICKTURN, C_RELOAD, 0
 rect_frame:     .hword 0, 0, 320, 240
 rect_font:      .hword FONT_X, FONT_Y, FONT_W, FONT_H
 rect_clut:      .hword CLUT_X, FONT_Y, 16, 1

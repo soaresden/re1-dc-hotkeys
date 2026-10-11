@@ -48,6 +48,8 @@ Pendant que L2 est maintenu, la croix ne fait plus bouger le perso.
 
 **Demi-tour** : **Carré + Bas**, comme dans RE3. Ensuite, relâche Bas pour repartir.
 
+**Rechargement rapide** : **R1 + Rond** remplit l'arme équipée jusqu'à sa capacité (Beretta 15, fusil à pompe, Colt et bazooka 6) en prenant dans les munitions de ce type portées ; une pile vide disparaît et l'inventaire se tasse, comme après une combinaison.
+
 **Menu d'options en jeu** : maintiens **Select** environ 3 secondes. Le jeu se fige sur sa dernière image ; **Haut / Bas** pour choisir, **Croix** (ou Gauche / Droite) pour activer / désactiver, **Start** pour revenir au jeu. Les changements valent jusqu'à l'extinction (le choix du patcheur revient au démarrage suivant).
 
 ## Limites

@@ -1,6 +1,6 @@
 // node tools/test_patcher_ui.js [version] : runs the patcher page scripts on a
 // tiny fake DOM with build/<version>/orig.bin as the chosen file, switches the
-// language, clicks "PPF" and checks the result against build/<version>/patched.ppf
+// language, clicks "PPF" and checks the result against build/<version>/hotkeys.ppf
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..'), vid = process.argv[2] || 'us';
 const html = fs.readFileSync(path.join(root, 'patcher', 'RE1-Hotkeys-Patcher.html'), 'utf8');
@@ -39,6 +39,6 @@ const file = { name: 'game.bin', size, slice(a, b) { return { arrayBuffer: async
   console.log('status:', get('status').innerHTML.replace(/<[^>]+>/g, ''), '| enabled:', !get('dlBin').disabled);
   get('dlPpf').listeners.click();
   const ppf = blobs[blobs.length - 1].parts[0];
-  const ref = fs.readFileSync(path.join(root, 'build', vid, 'patched.ppf'));
+  const ref = fs.readFileSync(path.join(root, 'build', vid, 'hotkeys.ppf'));
   console.log('saved:', saved, '| ppf identical:', Buffer.compare(Buffer.from(ppf), ref) === 0);
 })();
