@@ -4,7 +4,7 @@ Projet de Denis (« Soaresden »). Réponds en français.
 
 ## Objectif
 
-Patch du jeu **Resident Evil – Director's Cut (France) [SLES_009.70]**. Chaque fonction peut être désactivée (octet de `config`, voir plus bas) :
+Patch de **Resident Evil – Director's Cut**, trois versions : **FR SLES-00970** (version de référence de la recherche), **US SLUS-00551**, **US Dual Shock SLUS-00747** (`src/versions.py`). Chaque fonction peut être désactivée (octet de `config`, voir plus bas) :
 
 | n° | Fonction | Fichier | Effet |
 |---|---|---|---|
@@ -15,55 +15,65 @@ Patch du jeu **Resident Evil – Director's Cut (France) [SLES_009.70]**. Chaque
 | 4 | hud_ammo | `feat_hud.S` | Sous la vie : icône de l'arme équipée (demi-taille) et munitions (rouge à 0, rien pour le couteau). |
 | 5 | quickturn | `feat_quickturn.S` | Carré + Bas : demi-tour en 8 images de jeu (comme RE3). |
 
-Distribution : PPF 3.0, xdelta (toutes les options) et **patcheur HTML** (`patcher/RE1-Hotkeys-Patcher.html`, options à cocher). Le patch ne touche que l'exécutable, pas les textures.
+Distribution : xdelta par version (toutes les options) et **patcheur HTML** (`patcher/RE1-Hotkeys-Patcher.html` + GitHub Pages `docs/index.html`, FR/EN, détecte la version par la taille du .bin puis le CRC de l'exe). Le patch ne touche que l'exécutable. Dépôt public : https://github.com/soaresden/re1-dc-hotkeys (pas de données du jeu : ni CHD, ni .ppf, ni save states).
 
 ## État actuel
 
-Testé dans PCSX-Redux (OpenBIOS) avec Jill : tout ce qui précède, plus l'absence de stries après un échange d'arme. Démarrage vérifié avec le BIOS Sony **SCPH-5502** (PAL) : le noyau occupe 0xE000–0xE5FF, le bloc commence en 0xE800.
+Testé dans PCSX-Redux (OpenBIOS) avec Jill, sur les **trois versions** (scénarios `feat`, `quick`, `fire2`, `stripes`, `hp`) : tout ce qui précède, plus l'absence de stries après un échange d'arme. Démarrage vérifié avec le BIOS Sony **SCPH-5502** (PAL) : le noyau occupe 0xE000–0xE5FF, le bloc commence en 0xE800. Version FR validée par Denis sur émulateur.
 
-**Pas encore testé :** DuckStation / Beetle avec la nouvelle version, Chris (6 cases), Rebecca (inventaire 0x800C8790 : les raccourcis sont refusés), l'affichage pendant une vraie animation de porte (masqué par 0x800C845B, non vérifié), le PPF sur CHD dans DuckStation.
+**Pas encore testé :** versions US sur DuckStation / Beetle, Chris (6 cases), Rebecca (inventaire 0x800C8790 : les raccourcis sont refusés), l'affichage pendant une vraie animation de porte (masqué par 0x800C845B, non vérifié), le PPF sur CHD dans DuckStation.
 
 ## Contenu du dossier
 
-- `Resident Evil - Director's Cut (France) [SLES_009.70].chd` : image d'origine, ne jamais la modifier.
-- `... [Hotkeys].chd` : image patchée, toutes les options (reconstruite par `src/build.py`).
-- `patch/` : `.ppf` (pour DuckStation « Apply Image Patches ») et `.xdelta`, toutes options, sur le BIN d'origine (SHA1 5d9d1ea07595ae468ba4183a73331f0dace2384e). `patch.zip` = les deux + le patcheur.
-- `patcher/RE1-Hotkeys-Patcher.html` : patcheur autonome (généré, ne pas éditer à la main).
+- CHD d'origine à la racine (noms dans `versions.py`, champ `chd`) : jamais modifiés, ignorés par git. Ils peuvent être retirés : `build/<version>/orig.bin` suffit.
+- `patch/` : un `.xdelta` par version (toutes options). Les `.ppf` (contiennent l'exe décalé) restent dans `build/<version>/patched.ppf`, non publiés.
+- `patcher/RE1-Hotkeys-Patcher.html` et `docs/index.html` : patcheur généré (ne pas éditer à la main).
 - `src/` :
-  - `hotkey.S` (démarrage, `config`, les 3 accroches) + `lib.S` (tests d'état, primitives, nombres) + un `feat_*.S` par fonction ; `game.h` : adresses du jeu et constantes ;
-  - `build.py` (tout), `build_patch.py`, `make_tail.py`, `cdsector.py`, `fix_delay.py`, `make_ppf.py`, `apply_ppf.py`, `link.ld` ;
-  - `patcher/core.js` (cœur du patcheur, navigateur + Node) et `patcher/patcher.html` (modèle) ;
-  - `LISEZMOI.md` : doc utilisateur et technique.
-- `tools/` : `mips/` (toolchain), `chdman/`, `xdelta/`, `redux/` (PCSX-Redux), `emu-tests/` (banc de test), `re/xref.py`, `test_patcher.js` et `test_patcher_ui.js`.
-- `textures/SLES-00970/` : pack HD DuckStation (fait pour la version US), sans rapport avec le patch. Le `.zip` : pack de textures d'origine.
+  - `hotkey.S` (démarrage, `config`, les 3 accroches) + `lib.S` + un `feat_*.S` par fonction ; `game.h` : noms, champs, constantes ; **aucune adresse en dur** : tout vient de `build/<version>/version.h` ;
+  - `versions.py` : adresses par version + constantes du disque (LBA/secteurs de l'exe, tailles et SHA1 des .bin, pistes du .cue) ;
+  - `build.py`, `build_patch.py`, `make_tail.py`, `cdsector.py`, `fix_delay.py`, `make_ppf.py`, `apply_ppf.py`, `link.ld` ;
+  - `patcher/core.js` (cœur, navigateur + Node) et `patcher/patcher.html` (modèle, FR/EN) ;
+  - `LISEZMOI.md`.
+- `tools/` : `mips/`, `chdman/`, `xdelta/`, `redux/` (non suivis par git), `emu-tests/`, `re/xref.py`, `re/iso.py` (SYSTEM.CNF, LBA de l'exe, extraction), `re/port.py` (portage d'adresses), `test_patcher.js`, `test_patcher_ui.js`.
+- `build/<version>/` (fr, us, usds) : orig.bin/.cue, exe, version.h, tail.bin, hotkey.*, exe.patched, patched.bin/.cue/.ppf, exe.dis (US). `build/exe.dis` = désassemblage FR.
+- `annonces.md` : brouillons Reddit / romhacking.net (ignoré par git).
 
 ## Chaîne de construction
 
-**`python src/build.py`** (Windows ou Linux, chemins relatifs, intermédiaires dans `build/`) :
+**`python src/build.py`** : pour chaque version dont l'image est trouvée (CHD à la racine ou `build/<v>/orig.bin`) :
 
-1. extrait `build/re1.bin` du CHD d'origine (chdman), vérifie son SHA1, puis `SLES_009.70` directement du BIN (LBA 287669, 320 secteurs) ;
-2. `make_tail.py`, cpp, `fix_delay.py`, as, ld, objcopy → `build/hotkey.bin`, puis vérification objdump des load delays et des branchements dans un délai (de `_start` à `code_end`, hors `config`) ; refus si le bloc dépasse 0x1800 ;
-3. `build_patch.py` → `build/re1_hk.bin` + `.cue` ;
-4. le patcheur (`patcher/…html` + `build/patcher_data.js`) ;
-5. `patch/*.ppf` (`make_ppf.py`) et `patch/*.xdelta` (xdelta3 lancé depuis `build/` avec des noms relatifs, il les stocke dans l'en-tête) ;
-6. le CHD `[Hotkeys]`.
+1. extrait `orig.bin` du CHD si besoin, vérifie son SHA1, extrait l'exe du BIN ;
+2. génère `version.h` (adresses + `TAIL_START`, `BLOCK_SIZE`), `make_tail.py`, cpp (`-I build/<v>`), `fix_delay.py`, as, ld, objcopy → `hotkey.bin`, vérification objdump (load delays, branchements dans un délai) ; refus si le bloc dépasse 0x1800 ;
+3. `build_patch.py` : vérifie qu'à chaque site l'instruction d'origine est le `jal` attendu, puis `patched.bin` + `.cue` ;
+4. `patch/<nom> [Hotkeys].xdelta` (xdelta3 lancé depuis `build/<v>/`, noms relatifs) et `patched.ppf` local ;
+5. `--chd` : CHD patchés à la racine ;
+6. le patcheur, avec toutes les versions construites.
 
-Options : `--asm`, `--no-chd`, `--no-patches`. Ensuite **`node tools/test_patcher.js`** : le patcheur JS doit donner les mêmes secteurs que Python et le même PPF (`tools/test_patcher_ui.js` fait tourner la page sur un faux DOM).
+Options : `--ver fr,us,usds`, `--asm`, `--chd`, `--no-patches`. Puis **`node tools/test_patcher.js`** (secteurs et PPF identiques pour chaque version) et `node tools/test_patcher_ui.js <v>`.
 
-Outils (dans `tools/`, sinon PATH) : GCC/binutils `mipsel-none-elf` 12.3.0 (PSn00bSDK v0.24 ; `mips-linux-gnu-*` convient aussi), chdman (MAME 0.257), xdelta3 3.0.11, Node. `capstone` (pip) pour désassembler ; `build/exe.dis` = `objdump -D -b binary -m mips:3000 -EL --adjust-vma=0x80010000` de l'image.
+Outils (dans `tools/`, sinon PATH) : GCC/binutils `mipsel-none-elf` 12.3.0 (PSn00bSDK v0.24 ; `mips-linux-gnu-*` convient aussi), chdman (MAME 0.257), xdelta3 3.0.11, Node, `capstone` (pip).
 
-Reconstruction de l'ancienne version validée à l'identique le 2026-10-10 (bloc, BIN 0fb86399…, PPF bf6fb389…, xdelta b6fc9a4a…, CHD d2610242…).
+## Portage vers une autre version
+
+1. `python tools/re/iso.py <image.bin>` : SYSTEM.CNF, LBA et taille de l'exe ; `python tools/re/iso.py <image.bin> <EXE> <sortie>` pour l'extraire.
+2. `python tools/re/port.py build/fr/exe <autre exe> <adresses...>` : apparie les fonctions par signature (adresses masquées), aligne les paires pour voter les adresses de données ; « code, N before / M after » = longueur de la correspondance autour de l'adresse. **Les adresses vraiment utilisées** se relèvent sur le bloc assemblé (paires lui + décalage), pas dans les commentaires.
+3. Vérifier à la main : sites d'accroche (le `jal` d'origine et sa cible), corps des fonctions comparés côte à côte, tables (COND_COLOURS, SLOT_XY) retrouvées par leur contenu, arguments de F_LOAD_WEAPON. Pièges vus : correspondance courte = souvent fausse (grille US, tâche de jeu Dual Shock).
+4. Ajouter l'entrée dans `versions.py`, construire (`SAMEHI` refuse un registre de base partagé devenu faux), créer un save state (`launch.py <v>` puis `cmd.py`), lancer les scénarios `run.py ... --ver <v>`.
+
+Écarts connus : US d'origine = compilation plus ancienne (correspondances courtes), Dual Shock très proche de la FR. Zone 0x800C3000–0x800CAB14 et objet joueur identiques partout ; 0x800B…, la manette (0x800CF844 en US) et le code décalés.
+
+**Dual Shock (`TASK_PC_RESUME`)** : la mise en attente d'une tâche y écrit son adresse de retour en tâche + 4. On ne peut donc pas reconnaître la tâche de jeu ni l'inventaire par leur entrée : `game_running` saute ce test, et `menu_open` regarde `st.menu`, mis à 2 par `draw_hook` quand la grille est dessinée et décrémenté à chaque image.
 
 ## Architecture du patch
 
 **Placement en mémoire**
 
-- **Bloc :** 0x8000E800–0x8000FFFF (6 Ko) dans le tas du noyau BIOS (Sony : 0xE000–0xE5FF utilisés avec TCB=4/EVENT=16, mesuré sous SCPH-5502 ; OpenBIOS : rien). Code ≈ 4,5 Ko + `taildata` ≈ 1,4 Ko : il reste ~100 octets.
+- **Bloc :** 0x8000E800–0x8000FFFF (6 Ko) dans le tas du noyau BIOS (Sony : 0xE000–0xE5FF utilisés avec TCB=4/EVENT=16, mesuré sous SCPH-5502 ; OpenBIOS : rien ; les trois versions ont TCB=4/EVENT=16). Code ≈ 4,5 Ko + `taildata` 1,3–1,4 Ko : il reste ~90 octets en Dual Shock (6052/6144), ~140 en FR/US.
 - **En-tête de SLES_009.70 :** t_addr et pc0 = 0x8000E800, t_size inchangé (0x9F800), taille du fichier inchangée.
-- **Restauration au démarrage :** les 6 derniers Ko de l'image d'origine (0x800AE000–0x800AF800) sont abandonnés ; `boot` les remet à zéro, recopie les segments non nuls de `taildata` (`make_tail.py`, DROP = 0x1800), initialise `st` et saute à 0x800606A8.
-- **`config`** à `_start + 8` (8 octets, 1 = actif) : le patcheur l'écrit directement. **`st`** : état (pick, pend, turn, lock, ybias).
+- **Restauration au démarrage :** les 6 derniers Ko de l'image d'origine (`TAIL_START`, FR 0x800AE000) sont abandonnés ; `boot` les remet à zéro, recopie les segments non nuls de `taildata` (`make_tail.py`, DROP = 0x1800, trous de moins de 8 zéros gardés dans le segment ; même logique dans `core.js`), initialise `st` et saute à `GAME_ENTRY`.
+- **`config`** à `_start + 8` (8 octets, 1 = actif) : le patcheur l'écrit directement. **`st`** : état (pick, pend, turn, lock, ybias, menu).
 
-**Trois appels redirigés** (`build_patch.HOOKS`)
+**Trois appels redirigés** (`build_patch.hooks(v)` ; adresses FR ci-dessous)
 
 - `0x80032084` `jal 0x80032EDC` → `hook` : chaque image, après la lecture de la manette. Menu ouvert → `menu_move_input` ; sinon `quickslot_input`, `quickturn_input`. Termine par `j LOOP_NEXT`.
 - `0x80054C9C` `jal 0x80054F3C` → `draw_hook` : grille d'inventaire, puis flèches (`menu_arrows`) et surbrillance (`menu_pick_draw`) dans l'OT d'inventaire (0x800C88A0 + image × 20).
@@ -95,7 +105,7 @@ Reconstruction de l'ancienne version validée à l'identique le 2026-10-10 (bloc
 - **Inventaire sans trou** : Carré n'échange que deux cases occupées.
 - **Place** : le bloc est presque plein. La RAM basse « libre » sous OpenBIOS ne l'est pas avec un BIOS Sony ; les zones à zéro du jeu sont probablement des variables utilisées ailleurs ; la recherche de code mort n'a rien donné de fiable.
 
-## Adresses utiles (version FR)
+## Adresses utiles (version FR ; les autres : `src/versions.py`)
 
 | Adresse | Rôle |
 |---|---|
@@ -115,6 +125,7 @@ Reconstruction de l'ancienne version validée à l'identique le 2026-10-10 (bloc
 | 0x800B90F3 / F0 / EB | curseur d'inventaire (case + 4) × 2 / état du menu / objet sous le curseur |
 | 0x801FEC24 + slot × 0x80 | tâches : +0 statut (0x40 = suspendue), +4 entrée ; jeu = 0x8002A050, inventaire = 0x800546D8 |
 | 0x800C3010 / 0x800C845C | indice d'image / décalage y (0 ou 240) |
+| 0x800B8E92 / +6 | décalage d'écran du menu x / y (et non 0x800C8E92 comme noté avant) |
 
 Manette brute : L2 0x0001, R2 0x0002, L1 0x0004, R1 0x0008, Triangle 0x0010, Rond 0x0020, Croix 0x0040, Carré 0x0080, ↑ 0x1000, → 0x2000, ↓ 0x4000, ← 0x8000.
 Manette mappée : Carré (course) 0x0200, ↓ 0x0024, ↑ 0x0011, ← 0x0008, → 0x0002, Croix 0x40C0, R1 (viser) 0x0500, Triangle 0x8000, L1 0x0800, R2 0x1000.
@@ -130,6 +141,7 @@ Manette mappée : Carré (course) 0x0200, ↓ 0x0024, ↑ 0x0011, ← 0x0008, �
 
 ## Pistes / idées pour la suite
 
+- **Menu d'options en jeu** (demandé) : activer / désactiver nos options en jeu dans un overlay, sur l'image figée du jeu. Il faut une police (aucune police de lettres n'est en VRAM en jeu : seulement les chiffres et les icônes de l'inventaire) et de la place (bloc plein). `config` est déjà lue à chaque image, donc la bascule elle-même est simple.
 - **Mini-carte** en haut à droite (demandée) : gros chantier. La carte du jeu est chargée depuis le CD à l'ouverture de l'écran PLAN ; il faudrait trouver son format, la garder en RAM (place ?) et dessiner la salle courante. Le bloc n'a plus de place : il faudra d'abord trouver de la mémoire libre fiable ou compacter le code.
 - Tester DuckStation / Beetle, Chris, Rebecca, portes.
 - Gagner de la place : utiliser les délais de `jal`, regrouper les `lui 0x800c/0x800d`.

@@ -4,10 +4,23 @@
 
 /* ------------------------------------------------------------------
    v0 = 1 if the inventory is open (task slot 1 runs the menu task).
-   uses t6, t8, v1 */
+   uses t6, t8, v1. Called once per frame (hook). */
 menu_open:
-        lui     $v1, 0x801f                /* task table 0x801FEC24, 0x80 per slot */
-        ori     $v1, $v1, 0xec24
+#ifdef TASK_PC_RESUME
+        /* task + 4 holds where the task last yielded, not its entry: the
+           inventory is open if draw_hook drew its grid in the last frame */
+        lui     $v1, %hi(st + ST_MENU)
+        lbu     $t6, %lo(st + ST_MENU)($v1)
+        beqz    $t6, 9f
+        move    $v0, $zero
+        addiu   $t6, $t6, -1
+        sb      $t6, %lo(st + ST_MENU)($v1)
+        li      $v0, 1
+9:      jr      $ra
+        nop
+#else
+        lui     $v1, %hi(TASKS)            /* task table, 0x80 per slot */
+        addiu   $v1, $v1, %lo(TASKS)
         lhu     $t6, 0x80($v1)
         beqz    $t6, 9f
         move    $v0, $zero
@@ -19,12 +32,13 @@ menu_open:
         li      $v0, 1
 9:      jr      $ra
         nop
+#endif
 
 /* v0 = 1 if the game task runs normally in slot 0 and slot 1 is free
    (no menu, no swap task). uses t6, t8, v1 */
 game_running:
-        lui     $v1, 0x801f
-        ori     $v1, $v1, 0xec24
+        lui     $v1, %hi(TASKS)
+        addiu   $v1, $v1, %lo(TASKS)
         move    $v0, $zero
         lhu     $t6, 0($v1)                /* status: 0 = free, 0x40 = suspended */
         andi    $t8, $t6, 0x40
@@ -35,11 +49,13 @@ game_running:
         lhu     $t6, 0x80($v1)
         bnez    $t6, 9f
         nop
+#ifndef TASK_PC_RESUME                     /* else: no way to check the entry */
         lw      $t6, 4($v1)
         lui     $t8, (GAME_TASK >> 16)
         ori     $t8, $t8, (GAME_TASK & 0xffff)
         bne     $t6, $t8, 9f
         nop
+#endif
         li      $v0, 1
 9:      jr      $ra
         nop
@@ -55,36 +71,40 @@ can_act:
         beqz    $v0, 9f
         nop
         move    $v0, $zero
-        lui     $t0, 0x800d
-        lhu     $t6, -0x5500($t0)          /* 0x800CAB00 */
+        lui     $t0, %hi(CTRL_FLAGS)
+        lhu     $t6, %lo(CTRL_FLAGS)($t0)
         andi    $t6, $t6, 0x0101
         li      $t8, 0x0101
         bne     $t6, $t8, 9f
         nop
-        lui     $t8, 0x800c
-        lw      $t6, 0x3000($t8)           /* 0x800C3000 game flags */
+        lui     $t8, %hi(G_FLAGS)
+        lw      $t6, %lo(G_FLAGS)($t8)     /* game flags */
         lui     $t9, 0x0050
         ori     $t9, $t9, 0x7f00
         and     $t6, $t6, $t9
         bnez    $t6, 9f
         nop
-        lw      $t6, 0x3004($t8)
+        SAMEHI(G_FLAGS, G_FLAGS2)
+        lw      $t6, %lo(G_FLAGS2)($t8)
         lui     $t9, 0x1000
         and     $t6, $t6, $t9
         bnez    $t6, 9f
         nop
-        lbu     $t6, 0x51a9($t8)           /* player routine: 0 = normal */
+        SAMEHI(G_FLAGS, PLAYER)
+        lbu     $t6, %lo(P_ROUTINE)($t8)   /* player routine: 0 = normal */
         bnez    $t6, 9f
         nop
-        lbu     $t6, 0x51aa($t8)           /* sub-state: idle / walking / turning */
+        lbu     $t6, %lo(P_SUBSTATE)($t8)  /* sub-state: idle / walking / turning */
         sltiu   $t6, $t6, 9
         beqz    $t6, 9f
         nop
-        lh      $t6, 0x51ac($t8)           /* health */
+        lh      $t6, %lo(P_HP)($t8)        /* health */
         blez    $t6, 9f
         nop
-        lw      $t6, -0x4ef8($t8)          /* 0x800BB108 inventory pointer */
-        addiu   $t9, $t0, -0x787c          /* 0x800C8784 main inventory */
+        SAMEHI(G_FLAGS, INV_PTR)
+        lw      $t6, %lo(INV_PTR)($t8)     /* inventory pointer */
+        SAMEHI(CTRL_FLAGS, INV_MAIN)
+        addiu   $t9, $t0, %lo(INV_MAIN)    /* main inventory */
         bne     $t6, $t9, 9f
         nop
         li      $v0, 1
@@ -93,33 +113,36 @@ can_act:
         addiu   $sp, $sp, 0x18
 
 /* ------------------------------------------------------------------
-   s4 = OT descriptor of this frame, frame = 0x800C3010. The main loop
+   s4 = OT descriptor of this frame (frame index G_FRAME). The main loop
    clears three OT pairs (20 bytes per descriptor): 0x800C88C8 (scene,
    1024 entries), 0x800C88F0 and 0x800C88A0 (inventory).
    ot_desc: inventory OT, ot_desc_game: scene OT (drawn in game) */
 ot_desc_game:
         b       1f
-        ori     $t3, $zero, 0x88c8
+        ori     $t3, $zero, (OT_SCENE & 0xffff)
 ot_desc:
-        ori     $t3, $zero, 0x88a0
-1:      lui     $t0, 0x800c
-        lbu     $t1, 0x3010($t0)
+        ori     $t3, $zero, (OT_MENU & 0xffff)
+1:      lui     $t0, %hi(G_FRAME)
+        lbu     $t1, %lo(G_FRAME)($t0)
         sll     $t2, $t1, 2
         addu    $t2, $t2, $t1
         sll     $t2, $t2, 2
+        .if (OT_MENU >> 16) - (OT_SCENE >> 16); .error "OT descriptors"; .endif
+        lui     $t0, (OT_MENU >> 16)
         or      $s4, $t0, $t3
         jr      $ra
         addu    $s4, $s4, $t2
 
 /* s2, s3 = screen offset of the inventory, as the sprite helper computes it */
 menu_offset:
-        lui     $t0, 0x800c
-        lh      $t3, -0x716e($t0)          /* 0x800C8E92 */
-        lui     $t5, 0x1f80
-        lh      $t4, 0x398($t5)
+        lui     $t0, %hi(MENU_OFS)
+        lh      $t3, %lo(MENU_OFS)($t0)
+        lui     $t5, %hi(SPRITE)
+        lh      $t4, %lo(SPRITE + 0x18)($t5)
         subu    $s2, $t3, $t4
-        lh      $t3, -0x7168($t0)          /* 0x800C8E98 */
-        lh      $t4, 0x39a($t5)
+        SAMEHI(MENU_OFS, MENU_OFS + 6)
+        lh      $t3, %lo(MENU_OFS + 6)($t0)
+        lh      $t4, %lo(SPRITE + 0x1a)($t5)
         jr      $ra
         subu    $s3, $t3, $t4
 
@@ -139,14 +162,14 @@ cell_origin:
 
 /* ------------------------------------------------------------------
    a0 = primitive, a2 = z, a3 = words after the tag: links it into this
-   frame's OT (s4) and advances the packet pointer 0x800B7978. */
+   frame's OT (s4) and advances the packet pointer PKT_PTR. */
 link_prim:
         addiu   $sp, $sp, -0x18
         sw      $ra, 0x14($sp)
         move    $a1, $s4
         JAL(F_OT_LINK)
-        lui     $t0, 0x800b
-        sw      $v0, 0x7978($t0)
+        lui     $t0, %hi(PKT_PTR)
+        sw      $v0, %lo(PKT_PTR)($t0)
         lw      $ra, 0x14($sp)
         jr      $ra
         addiu   $sp, $sp, 0x18
@@ -182,8 +205,8 @@ put_poly:
         addu    $t9, $t9, $t0
         sw      $a2, 0x18($sp)
         sw      $a3, 0x14($sp)
-        lui     $t0, 0x800b
-        lw      $t7, 0x7978($t0)           /* packet pointer */
+        lui     $t0, %hi(PKT_PTR)
+        lw      $t7, %lo(PKT_PTR)($t0)           /* packet pointer */
         sw      $t7, 0x10($sp)
         sw      $a0, 4($t7)
         move    $t5, $a1
@@ -204,8 +227,8 @@ put_poly:
 put_mode:
         addiu   $sp, $sp, -0x18
         sw      $ra, 0x14($sp)
-        lui     $t0, 0x800b
-        lw      $t7, 0x7978($t0)
+        lui     $t0, %hi(PKT_PTR)
+        lw      $t7, %lo(PKT_PTR)($t0)
         sw      $a0, 4($t7)
         move    $a0, $t7
         jal     link_prim
@@ -222,8 +245,8 @@ put_tile:
         lui     $t0, %hi(st + ST_YBIAS)
         lh      $t0, %lo(st + ST_YBIAS)($t0)
         addu    $a1, $a1, $t0
-        lui     $t0, 0x800b
-        lw      $t7, 0x7978($t0)
+        lui     $t0, %hi(PKT_PTR)
+        lw      $t7, %lo(PKT_PTR)($t0)
         sw      $a3, 4($t7)
         andi    $t1, $a0, 0xffff
         sll     $t2, $a1, 16
@@ -247,8 +270,8 @@ put_ft4:
         lui     $t0, %hi(st + ST_YBIAS)
         lh      $t0, %lo(st + ST_YBIAS)($t0)
         addu    $a1, $a1, $t0
-        lui     $t0, 0x800b
-        lw      $t7, 0x7978($t0)
+        lui     $t0, %hi(PKT_PTR)
+        lw      $t7, %lo(PKT_PTR)($t0)
         lw      $t1, TEX_CMD($a3)
         sw      $t1, 4($t7)
         lhu     $t2, TEX_SW($a3)

@@ -3,7 +3,7 @@
    from the game; afterwards Down stays hidden until it is released, so
    the player does not walk backwards right away.
 
-   Player angle: halfword 0x800C5198 (0..0xFFF, 0x800 = half a turn).
+   Player angle: P_ANGLE (halfword 0..0xFFF, 0x800 = half a turn).
    Needs: hook (input), lib.S */
 
 #define TURN_FRAMES     8
@@ -20,8 +20,8 @@ quickturn_input:
         lbu     $t1, ST_LOCK($t5)
         bnez    $t1, 4f                    /* waiting for Down to be released */
         nop
-        lui     $t0, 0x800d
-        lw      $t1, -0x3fc($t0)           /* 0x800CFC04 raw held */
+        lui     $t0, %hi(PAD_HELD)
+        lw      $t1, %lo(PAD_HELD)($t0)    /* raw held */
         andi    $t2, $t1, 0x0001           /* not with L2 (quick slots) */
         bnez    $t2, 9f
         nop
@@ -29,7 +29,7 @@ quickturn_input:
         li      $t3, 0x4080
         bne     $t2, $t3, 9f
         nop
-        lw      $t3, -0x3f8($t0)           /* ...one of them just pressed */
+        lw      $t3, %lo(PAD_NEW)($t0)     /* ...one of them just pressed */
         andi    $t3, $t3, 0x4080
         beqz    $t3, 9f
         nop
@@ -38,11 +38,11 @@ quickturn_input:
         beqz    $v0, 9f
         nop
         li      $t1, TURN_FRAMES
-2:      lui     $t8, 0x800c
-        lhu     $t2, 0x5198($t8)           /* player angle */
+2:      lui     $t8, %hi(P_ANGLE)
+        lhu     $t2, %lo(P_ANGLE)($t8)     /* player angle */
         addiu   $t2, $t2, TURN_STEP
         andi    $t2, $t2, 0x0fff
-        sh      $t2, 0x5198($t8)
+        sh      $t2, %lo(P_ANGLE)($t8)
         addiu   $t1, $t1, -1
         sb      $t1, ST_TURN($t5)
         bnez    $t1, 3f
@@ -51,21 +51,22 @@ quickturn_input:
 3:      li      $t3, 0xfdc0                /* mapped pad: no directions (0x003F), no run (0x0200) */
         b       5f
         nop
-4:      lui     $t0, 0x800d
-        lw      $t1, -0x3fc($t0)
+4:      lui     $t0, %hi(PAD_HELD)
+        lw      $t1, %lo(PAD_HELD)($t0)
         andi    $t1, $t1, 0x4000           /* Down still held? */
         bnez    $t1, 6f
         nop
         b       9f
         sb      $zero, ST_LOCK($t5)
 6:      li      $t3, 0xffdb                /* mapped pad: no Down (0x0024) */
-5:      lui     $t0, 0x800d
-        lhu     $t6, -0x7980($t0)          /* 0x800C8680 mapped held */
+5:      lui     $t0, %hi(MAP_HELD)
+        SAMEHI(MAP_HELD, MAP_NEW)
+        lhu     $t6, %lo(MAP_HELD)($t0)    /* mapped held */
         and     $t6, $t6, $t3
-        sh      $t6, -0x7980($t0)
-        lhu     $t6, -0x797e($t0)          /* 0x800C8682 mapped pressed */
+        sh      $t6, %lo(MAP_HELD)($t0)
+        lhu     $t6, %lo(MAP_NEW)($t0)     /* mapped pressed */
         and     $t6, $t6, $t3
-        sh      $t6, -0x797e($t0)
+        sh      $t6, %lo(MAP_NEW)($t0)
 9:      lw      $ra, 0x14($sp)
         jr      $ra
         addiu   $sp, $sp, 0x18

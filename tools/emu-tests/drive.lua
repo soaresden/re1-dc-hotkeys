@@ -1,7 +1,7 @@
 -- interactive driver: polls the CMD_FILE file (default cmd.txt)
 local CMD = os.getenv('CMD_FILE') or 'cmd.txt'
 return { step = function(n, a)
-  if n == 800 then
+  if n == 800 and os.getenv('MOVIE_PATCH') == '1' then   -- FR addresses: skip the intro movies
     a.w32(0x8005bc98, 0x24020002); a.w32(0x8005bc9c, 0x03e00008); a.w32(0x8005bca0, 0)
     a.w32(0x80037760, 0x03e00008); a.w32(0x80037764, 0)
     a.L('patched movies')

@@ -5,7 +5,7 @@
      hud_ammo : under it, the equipped weapon icon (half size) and its ammo
                 (red when empty, nothing for the knife)
    Condition level = (health - 1) / (max health / 4), max 3, as the
-   inventory computes it (max health: byte 0x800C5299).
+   inventory computes it (max health: byte P_HPMAX).
 
    Needs: frame_hook (s4 = OT), lib.S. Textures: inventory digits and icon
    cache, resident in VRAM during the game. */
@@ -21,9 +21,10 @@ hud_draw:
         CFG($t0, C_HUD_HP)
         beqz    $t0, 3f
         nop
-        lui     $t8, 0x800c
-        lh      $s0, 0x51ac($t8)           /* health */
-        lbu     $t1, 0x5299($t8)           /* max health */
+        lui     $t8, %hi(P_HP)
+        SAMEHI(P_HP, P_HPMAX)
+        lh      $s0, %lo(P_HP)($t8)        /* health */
+        lbu     $t1, %lo(P_HPMAX)($t8)     /* max health */
         move    $s1, $zero                 /* condition level */
         blez    $s0, 2f
         srl     $t1, $t1, 2
@@ -78,19 +79,20 @@ hud_draw:
 3:      CFG($t0, C_HUD_AMMO)
         beqz    $t0, 9f
         nop
-        lui     $t0, 0x800d
-        lbu     $t1, -0x7977($t0)          /* 0x800C8689 equipped slot, 1-based */
+        lui     $t0, %hi(EQUIPPED)
+        lbu     $t1, %lo(EQUIPPED)($t0)    /* equipped slot, 1-based */
         beqz    $t1, 9f
         nop
-        lui     $t8, 0x800c
-        lw      $t2, -0x4ef8($t8)          /* inventory pointer */
+        lui     $t8, %hi(INV_PTR)
+        lw      $t2, %lo(INV_PTR)($t8)     /* inventory pointer */
         sll     $t3, $t1, 1
         addu    $t2, $t2, $t3
         lbu     $s0, -2($t2)               /* weapon id */
         lbu     $s1, -1($t2)               /* ammo */
         beqz    $s0, 9f
         nop
-        addiu   $t3, $t8, -0x4e18          /* 0x800BB1E8 icon cache slot per item slot */
+        SAMEHI(INV_PTR, ICON_CACHE)
+        addiu   $t3, $t8, %lo(ICON_CACHE)  /* icon cache slot per item slot */
         addu    $t3, $t3, $t1
         lbu     $t3, -1($t3)
         sll     $t3, $t3, 13               /* v = cache slot * 32, in bits 8-15 */

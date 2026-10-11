@@ -19,15 +19,23 @@ Every feature can be switched on or off in the patcher.
 
 ![Health colours](docs/img/hp-colours.png)
 
-> **Supported version: Resident Evil – Director's Cut (France), SLES-00970** (Redump, BIN SHA1 `5d9d1ea07595ae468ba4183a73331f0dace2384e`). Other versions (US, UK, Japan…) need a port of the game addresses — see [Other versions](#other-versions).
+### Supported versions
+
+| Version | Serial | Original image |
+|---|---|---|
+| Resident Evil – Director's Cut (France) | SLES-00970 | Redump .bin, SHA1 `5d9d1ea07595ae468ba4183a73331f0dace2384e` |
+| Resident Evil – Director's Cut (USA) | SLUS-00551 | .bin, SHA1 `d926cec7ac6a1665cc00039ab92dee6a6bebe824` |
+| Resident Evil – Director's Cut – Dual Shock Ver. (USA) | SLUS-00747 | single .bin (720 MB, SHA1 `e5d1612ead98cdd0f21232cfa914fc62771025ee`) or the Redump *(Track 1)* .bin |
+
+The patcher recognises the version by itself. Other releases (Europe in English, Germany, Japan…) need a port of the game addresses — see [Other versions](#other-versions).
 
 ## Install
 
 ### Option 1 — the patcher (recommended)
 
-Open **[the online patcher](https://soaresden.github.io/re1-dc-hotkeys/)** (or download [`patcher/RE1-Hotkeys-Patcher.html`](patcher/RE1-Hotkeys-Patcher.html) and open it offline), then:
+Open **[the online patcher](https://soaresden.github.io/re1-dc-hotkeys/)** (or download [`patcher/RE1-Hotkeys-Patcher.html`](patcher/RE1-Hotkeys-Patcher.html) and open it offline; English / French switch at the top right), then:
 
-1. pick your original `.bin`;
+1. pick your original `.bin` (the version is detected);
 2. tick the features you want;
 3. download either the **patched .bin (+ .cue)**, or a **.ppf**.
 
@@ -39,7 +47,7 @@ Everything runs in your browser; nothing is uploaded. The patcher contains no ga
 
 ### Option 2 — xdelta (all features on)
 
-Apply [`patch/…- Raccourcis.xdelta`](patch/) to the original `.bin` with xdelta3, Delta Patcher or any xdelta tool.
+Apply the [`patch/`](patch/) xdelta of your version to the original `.bin` with xdelta3, Delta Patcher or any xdelta tool. For the Dual Shock version, the xdelta is made for the single 720 MB .bin (e.g. extracted from a .chd); with a Redump *(Track 1)* file, use the patcher.
 
 ## Controls
 
@@ -57,7 +65,7 @@ The quick slots are the four top cells of the inventory (the 2×2 square); the m
 - No quick action while aiming, during animations (stairs, picking up, doors), cutscenes, or when the character is down.
 - Square only swaps two occupied cells: the game requires an inventory without holes.
 - The on-screen display is hidden in menus, cutscenes and doors.
-- Tested with Jill, on emulator with a Sony BIOS and in PCSX-Redux (OpenBIOS and SCPH-5502). Not tested on real hardware, nor with Chris (6 slots) and Rebecca yet: reports welcome.
+- Tested with Jill on all three versions in PCSX-Redux (OpenBIOS; boot also checked with the Sony SCPH-5502 BIOS), and the FR version on emulator with a Sony BIOS. Not tested on real hardware, nor with Chris (6 slots) and Rebecca yet: reports welcome.
 
 ## How it works
 
@@ -74,7 +82,8 @@ Source layout (`src/`):
 | `hotkey.S` | boot, `config`, the three hooks |
 | `lib.S` | game state tests, GPU primitives, numbers |
 | `feat_menu_move.S`, `feat_quickslots.S`, `feat_overlay.S`, `feat_hud.S`, `feat_quickturn.S` | one file per feature — reuse them freely |
-| `game.h` | game addresses and constants (FR version) |
+| `game.h` | what the mod uses of the game (names, fields, constants) |
+| `versions.py` | the addresses of each version + disc constants (`version.h` is generated from it) |
 | `build.py` | the whole build |
 | `patcher/core.js`, `patcher/patcher.html` | the patcher (browser and Node) |
 
@@ -88,20 +97,21 @@ Requirements: Python 3, Node, a MIPS GNU toolchain, chdman and xdelta3. On Windo
 - `tools/chdman/chdman.exe` — from MAME;
 - `tools/xdelta/xdelta3-*.exe` — [xdelta3 3.0.11](https://github.com/jmacd/xdelta-gpl/releases).
 
-Put the original `Resident Evil - Director's Cut (France) [SLES_009.70].chd` at the root, then:
+Put the original images at the root (CHD names of `src/versions.py`, e.g. `Resident Evil - Director's Cut (USA).chd`) or their `.bin` as `build/<version>/orig.bin` (`fr`, `us`, `usds`), then:
 
 ```
-python src/build.py              # block, patched BIN/CUE, patcher, .ppf, .xdelta, patched CHD
-python src/build.py --asm        # code block only
-python src/build.py --no-chd     # skip the CHD
+python src/build.py              # every version found: block, patched BIN/CUE, xdelta, patcher
+python src/build.py --ver us     # one version
+python src/build.py --asm        # code blocks only
+python src/build.py --chd        # also the patched CHDs
 node tools/test_patcher.js       # the JS patcher must produce the same bytes as the Python build
 ```
 
-The test bench (`tools/emu-tests/`) drives PCSX-Redux with Lua scenarios (`run.py <scenario>`); it needs a save state you make yourself (`launch.py`, then `cmd.py "save dining_jill"`).
+The test bench (`tools/emu-tests/`) drives PCSX-Redux with Lua scenarios (`run.py <scenario> --ver us`); it needs save states you make yourself (`launch.py us`, then `cmd.py "save dining_us"`).
 
 ## Other versions
 
-All game addresses (functions and variables) are specific to the French executable. A port to another version means finding the same functions and variables in that executable (signature search on the disassembly), then updating `src/game.h`, the hook sites in `src/build_patch.py` and the disc constants (executable LBA, size, checksum). Contributions welcome.
+Each version has its own executable, so every address (functions, variables, hook sites) is different. `tools/re/port.py` finds the French addresses in another executable: it matches functions by signature (instructions with addresses masked), then aligns them to pair the data addresses. Its results must be checked by hand (call sites, function bodies, data tables found by content), then go into `src/versions.py` as a new entry, with the disc constants (`tools/re/iso.py` gives the executable's LBA and size). The assembler refuses a shared base register that is no longer valid in a version (`SAMEHI`). Contributions welcome — especially Europe in English (SLES-00969), Germany and Japan.
 
 ## Credits
 

@@ -15,32 +15,34 @@
 quickslot_input:
         addiu   $sp, $sp, -0x28
         sw      $ra, 0x24($sp)
-        lui     $t0, 0x800d
-        lw      $t1, -0x3fc($t0)           /* 0x800CFC04 raw pad held */
+        lui     $t0, %hi(PAD_HELD)
+        lw      $t1, %lo(PAD_HELD)($t0)    /* raw pad held */
         andi    $t2, $t1, 0x0001           /* L2 */
         beqz    $t2, 9f
         nop
         /* L2 held: hide the d-pad from the game */
-        lw      $t3, -0x3f8($t0)           /* 0x800CFC08 raw newly pressed */
+        SAMEHI(PAD_HELD, PAD + 0xc)
+        SAMEHI(PAD_HELD, MAP_NEW)
+        lw      $t3, %lo(PAD_NEW)($t0)     /* raw newly pressed */
         andi    $t4, $t3, 0xf000           /* newly pressed d-pad */
         lui     $t5, 0xffff
         ori     $t5, $t5, 0x0fff
         and     $t1, $t1, $t5
         and     $t3, $t3, $t5
-        sw      $t1, -0x3fc($t0)
-        sw      $t3, -0x3f8($t0)
-        lhu     $t6, -0x3f4($t0)           /* 0x800CFC0C */
+        sw      $t1, %lo(PAD_HELD)($t0)
+        sw      $t3, %lo(PAD_NEW)($t0)
+        lhu     $t6, %lo(PAD + 8)($t0)
         and     $t6, $t6, $t5
-        sh      $t6, -0x3f4($t0)
-        lhu     $t6, -0x3f0($t0)           /* 0x800CFC10 */
+        sh      $t6, %lo(PAD + 8)($t0)
+        lhu     $t6, %lo(PAD + 0xc)($t0)
         and     $t6, $t6, $t5
-        sh      $t6, -0x3f0($t0)
-        lhu     $t6, -0x7980($t0)          /* 0x800C8680 mapped held */
+        sh      $t6, %lo(PAD + 0xc)($t0)
+        lhu     $t6, %lo(MAP_HELD)($t0)    /* mapped held */
         andi    $t6, $t6, 0xdfc0           /* drop directions and the L2 bit */
-        sh      $t6, -0x7980($t0)
-        lhu     $t6, -0x797e($t0)          /* 0x800C8682 mapped pressed */
+        sh      $t6, %lo(MAP_HELD)($t0)
+        lhu     $t6, %lo(MAP_NEW)($t0)     /* mapped pressed */
         andi    $t6, $t6, 0xdfc0
-        sh      $t6, -0x797e($t0)
+        sh      $t6, %lo(MAP_NEW)($t0)
         beqz    $t4, 9f
         nop
         /* quick slot: up=0, down=1, left=2, right=3 */
@@ -61,8 +63,8 @@ quickslot_input:
         nop
         beqz    $v0, 9f
         nop
-        lui     $t0, 0x800d
-        addiu   $t9, $t0, -0x787c          /* 0x800C8784 main inventory */
+        lui     $t0, %hi(INV_MAIN)
+        addiu   $t9, $t0, %lo(INV_MAIN)    /* main inventory */
         sll     $t4, $t7, 1
         addu    $t4, $t4, $t9              /* &inventory[slot] */
         lbu     $t2, 0($t4)                /* item id */
@@ -81,7 +83,8 @@ quickslot_input:
 
 2:      /* weapon: equip it from a task */
         addiu   $t3, $t7, 1                /* equipped slot is 1-based */
-        lbu     $t6, -0x7977($t0)          /* 0x800C8689 equipped slot */
+        SAMEHI(INV_MAIN, EQUIPPED)
+        lbu     $t6, %lo(EQUIPPED)($t0)    /* equipped slot */
         beq     $t6, $t3, 9f
         nop
         lui     $t8, %hi(st)
@@ -96,29 +99,30 @@ quickslot_input:
         nop
 
 3:      /* healing item: same as "use" in the inventory. The heal routine
-           reads the item id from 0x800B90EB: save/restore the menu work
-           bytes it touches. */
+           reads the item id from MW_ITEM: save/restore the menu work bytes
+           it touches (MENU_WORK + 0..0xB and + 0x1C..0x1F). */
         sw      $t4, 0x10($sp)             /* &inventory[slot] */
-        lui     $t8, 0x800c
-        lw      $t6, -0x6f20($t8)          /* 0x800B90E0..E3 */
-        lw      $t5, -0x6f1c($t8)          /* 0x800B90E4..E7 */
+        lui     $t8, %hi(MENU_WORK)
+        SAMEHI(MENU_WORK, MENU_WORK + 0x1c)
+        lw      $t6, %lo(MENU_WORK)($t8)
+        lw      $t5, %lo(MENU_WORK + 4)($t8)
         sw      $t6, 0x14($sp)
         sw      $t5, 0x18($sp)
-        lw      $t6, -0x6f18($t8)          /* 0x800B90E8..EB */
-        lw      $t5, -0x6f04($t8)          /* 0x800B90FC..FF */
+        lw      $t6, %lo(MENU_WORK + 8)($t8)
+        lw      $t5, %lo(MENU_WORK + 0x1c)($t8)
         sw      $t6, 0x1c($sp)
         sw      $t5, 0x20($sp)
-        sb      $t2, -0x6f15($t8)          /* 0x800B90EB = item */
+        sb      $t2, %lo(MW_ITEM)($t8)     /* item */
         JAL(F_HEAL)
-        lui     $t8, 0x800c
+        lui     $t8, %hi(MENU_WORK)
         lw      $t6, 0x14($sp)
         lw      $t5, 0x18($sp)
-        sw      $t6, -0x6f20($t8)
-        sw      $t5, -0x6f1c($t8)
+        sw      $t6, %lo(MENU_WORK)($t8)
+        sw      $t5, %lo(MENU_WORK + 4)($t8)
         lw      $t6, 0x1c($sp)
         lw      $t5, 0x20($sp)
-        sw      $t6, -0x6f18($t8)
-        sw      $t5, -0x6f04($t8)
+        sw      $t6, %lo(MENU_WORK + 8)($t8)
+        sw      $t5, %lo(MENU_WORK + 0x1c)($t8)
         andi    $v0, $v0, 0xff
         beqz    $v0, 9f                    /* nothing to heal */
         nop
@@ -144,61 +148,64 @@ quickslot_input:
    Task body (slot 1). Runs in its own thread and may yield. */
         .globl swap_task
 swap_task:
-        lui     $t0, 0x800d
+        lui     $t0, %hi(EQUIPPED)
         lui     $t8, %hi(st)
         lbu     $t3, %lo(st + ST_PEND)($t8)
-        sb      $t3, -0x7977($t0)          /* 0x800C8689 equipped slot */
-        lui     $t8, 0x800c
-        ori     $t8, $t8, 0x5124
-        sw      $t8, -0x54ec($t0)          /* 0x800CAB14 = player object */
+        SAMEHI(EQUIPPED, CUR_OBJ)
+        sb      $t3, %lo(EQUIPPED)($t0)    /* equipped slot */
+        lui     $t8, %hi(PLAYER)
+        addiu   $t8, $t8, %lo(PLAYER)
+        sw      $t8, %lo(CUR_OBJ)($t0)     /* current object = player */
         /* same as F_SYNC_EQUIP (0x80054E74), except for the sound buffer:
            it loads the weapon sounds through 0x801D10EC, which holds the
            copy of the room background redrawn every frame (the inventory
            restores it on exit, we would leave stripes at the top of the
            screen). The weapon model buffer is used instead: the sounds are
            in the SPU before F_LOAD_WEAPON overwrites it. */
-        lui     $s0, 0x800c
-        lw      $t9, -0x4ef8($s0)          /* 0x800BB108 inventory pointer */
+        lui     $s0, %hi(PLAYER)
+        SAMEHI(PLAYER, INV_PTR)
+        SAMEHI(PLAYER, G_FLAGS2)
+        lw      $t9, %lo(INV_PTR)($s0)     /* inventory pointer */
         sll     $t3, $t3, 1
         addu    $t9, $t9, $t3
         lbu     $a0, -2($t9)               /* item in the equipped slot */
-        lbu     $t6, 0x5126($s0)
+        lbu     $t6, %lo(P_WEAPON)($s0)
         beq     $a0, $t6, 2f               /* same weapon: nothing to load */
         nop
-        sb      $a0, 0x5126($s0)           /* 0x800C5126 weapon id */
-        lw      $t6, 0x3004($s0)
+        sb      $a0, %lo(P_WEAPON)($s0)    /* weapon id */
+        lw      $t6, %lo(G_FLAGS2)($s0)
         lui     $t7, 0x0002
         and     $t6, $t6, $t7
         beqz    $t6, 1f
         li      $t6, 4
         bne     $a0, $t6, 1f
         nop
-        li      $a0, 2                     /* weapon 4 -> 2 when 0x800C3004 & 0x20000 */
-        sb      $a0, 0x5126($s0)
+        li      $a0, 2                     /* weapon 4 -> 2 when G_FLAGS2 & 0x20000 */
+        sb      $a0, %lo(P_WEAPON)($s0)
 1:      lui     $a1, (WEAPON_BUF >> 16)
         ori     $a1, $a1, (WEAPON_BUF & 0xffff)
         JAL(F_LOAD_SOUNDS)                 /* VH -> 0x800F5400, VB -> a1 -> SPU */
         /* back to idle, as the inventory exit does */
-        lui     $s0, 0x800c
+        lui     $s0, %hi(PLAYER)
         li      $t6, 1
-        sw      $t6, 0x51a8($s0)
-        sb      $zero, 0x51e1($s0)
-        sb      $zero, 0x51b0($s0)
-        sb      $zero, 0x51e2($s0)
-        sb      $zero, 0x51e3($s0)
-        sb      $zero, 0x51ae($s0)
+        sw      $t6, %lo(P_STATE)($s0)
+        sb      $zero, %lo(PLAYER + 0xbd)($s0)
+        sb      $zero, %lo(PLAYER + 0x8c)($s0)
+        sb      $zero, %lo(PLAYER + 0xbe)($s0)
+        sb      $zero, %lo(PLAYER + 0xbf)($s0)
+        sb      $zero, %lo(PLAYER + 0x8a)($s0)
         move    $a0, $zero
-        lw      $a1, 0x51b4($s0)
-        lw      $a2, 0x51b8($s0)
+        lw      $a1, %lo(PLAYER + 0x90)($s0)
+        lw      $a2, %lo(PLAYER + 0x94)($s0)
         li      $a3, 0x400
         JAL(F_SET_ANIM)
-        lui     $s0, 0x800c
-        lbu     $a0, 0x5126($s0)           /* new weapon id */
+        lui     $s0, %hi(PLAYER)
+        lbu     $a0, %lo(P_WEAPON)($s0)    /* new weapon id */
         li      $a1, 14
-        lui     $a2, 0x800e
-        ori     $a2, $a2, 0xa800
-        lui     $a3, 0x800f
-        ori     $a3, $a3, 0x2200
+        lui     $a2, (WEAPON_BUF >> 16)
+        ori     $a2, $a2, (WEAPON_BUF & 0xffff)
+        lui     $a3, (ANIM_BUF >> 16)
+        ori     $a3, $a3, (ANIM_BUF & 0xffff)
         JAL(F_LOAD_WEAPON)                 /* weapon model + animations */
 2:      move    $a0, $zero                 /* resume the game task */
         JAL(F_TASK_RESUME)

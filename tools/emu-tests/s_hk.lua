@@ -21,16 +21,16 @@ at(12, function(a, n)
     local f = io.open(os.getenv('HK_INJECT'), 'rb'); local data = f:read('*a'); f:close()
     local base = tonumber(os.getenv('HK_BASE') or '8000f800', 16)
     for i = 1, #data do a.w8(base + i - 1, data:byte(i)) end
-    a.w32(0x80032084, tonumber(os.getenv('HK_JAL'), 16))
-    if (os.getenv('HK_DRAWJAL') or '') ~= '' then a.w32(0x80054c9c, tonumber(os.getenv('HK_DRAWJAL'), 16)) end
-    if (os.getenv('HK_FRAMEJAL') or '') ~= '' then a.w32(0x80032740, tonumber(os.getenv('HK_FRAMEJAL'), 16)) end
+    a.w32(tonumber(os.getenv('HK_SITE_HOOK'), 16), tonumber(os.getenv('HK_JAL'), 16))
+    a.w32(tonumber(os.getenv('HK_SITE_GRID'), 16), tonumber(os.getenv('HK_DRAWJAL'), 16))
+    a.w32(tonumber(os.getenv('HK_SITE_FRAME'), 16), tonumber(os.getenv('HK_FRAMEJAL'), 16))
     a.L('INJECTED '..#data)
   end
 end)
 at(40, function(a, n)
   PCSX.settings.emulator.Debug.Debug = true
   bps[1] = PCSX.addBreakpoint(tonumber(os.getenv('HK_HOOK'),16), 'Exec', 4, 'hook', function() HITS.hook = HITS.hook + 1 end)
-  bps[2] = PCSX.addBreakpoint(0x80032084, 'Exec', 4, 'call', function() HITS.call = HITS.call + 1 end)
+  bps[2] = PCSX.addBreakpoint(tonumber(os.getenv('HK_SITE_HOOK'), 16), 'Exec', 4, 'call', function() HITS.call = HITS.call + 1 end)
   bps[3] = PCSX.addBreakpoint(0x8003b864, 'Exec', 4, 'pad', function() HITS.pad = HITS.pad + 1 end)
   bps[4] = PCSX.addBreakpoint(0x80054e74, 'Exec', 4, 'sync', function() HITS.sync = HITS.sync + 1 end)
   bps[6] = PCSX.addBreakpoint(0x80057ca0, 'Exec', 4, 'heal', function() HITS.heal = (HITS.heal or 0) + 1 end)

@@ -19,15 +19,23 @@ Chaque option s'active ou se désactive dans le patcheur.
 
 ![Couleurs de la vie](docs/img/hp-colours.png)
 
-> **Version prise en charge : Resident Evil – Director's Cut (France), SLES-00970** (Redump, SHA1 du BIN `5d9d1ea07595ae468ba4183a73331f0dace2384e`). Les autres versions (US, UK, Japon…) demandent un portage des adresses du jeu : voir [Autres versions](#autres-versions).
+### Versions prises en charge
+
+| Version | Code | Image d'origine |
+|---|---|---|
+| Resident Evil – Director's Cut (France) | SLES-00970 | .bin Redump, SHA1 `5d9d1ea07595ae468ba4183a73331f0dace2384e` |
+| Resident Evil – Director's Cut (USA) | SLUS-00551 | .bin, SHA1 `d926cec7ac6a1665cc00039ab92dee6a6bebe824` |
+| Resident Evil – Director's Cut – Dual Shock Ver. (USA) | SLUS-00747 | .bin unique (720 Mo, SHA1 `e5d1612ead98cdd0f21232cfa914fc62771025ee`) ou le .bin Redump *(Track 1)* |
+
+Le patcheur reconnaît la version tout seul. Les autres éditions (Europe en anglais, Allemagne, Japon…) demandent un portage des adresses du jeu : voir [Autres versions](#autres-versions).
 
 ## Installer
 
 ### Option 1 : le patcheur (conseillé)
 
-Ouvre **[le patcheur en ligne](https://soaresden.github.io/re1-dc-hotkeys/)** (ou télécharge [`patcher/RE1-Hotkeys-Patcher.html`](patcher/RE1-Hotkeys-Patcher.html) et ouvre-le hors ligne), puis :
+Ouvre **[le patcheur en ligne](https://soaresden.github.io/re1-dc-hotkeys/)** (ou télécharge [`patcher/RE1-Hotkeys-Patcher.html`](patcher/RE1-Hotkeys-Patcher.html) et ouvre-le hors ligne ; choix français / anglais en haut à droite), puis :
 
-1. choisis ton `.bin` d'origine ;
+1. choisis ton `.bin` d'origine (la version est détectée) ;
 2. coche les options voulues ;
 3. télécharge le **.bin patché (+ .cue)** ou un **.ppf**.
 
@@ -39,7 +47,7 @@ Tout se passe dans le navigateur, rien n'est envoyé. Le patcheur ne contient au
 
 ### Option 2 : xdelta (toutes les options)
 
-Applique [`patch/…- Raccourcis.xdelta`](patch/) sur le `.bin` d'origine avec xdelta3, Delta Patcher ou un autre outil xdelta.
+Applique le xdelta de ta version, dans [`patch/`](patch/), sur le `.bin` d'origine avec xdelta3, Delta Patcher ou un autre outil xdelta. Pour la version Dual Shock, le xdelta est fait pour le .bin unique de 720 Mo (par exemple extrait d'un .chd) ; avec un fichier Redump *(Track 1)*, passe par le patcheur.
 
 ## Commandes
 
@@ -57,7 +65,7 @@ Les cases rapides sont les quatre cases du haut de l'inventaire (le carré 2×2)
 - Pas d'action rapide en visée, pendant une animation (escalier, ramassage, porte), une cinématique, ni quand le perso est au sol.
 - Carré n'échange que deux cases occupées : le jeu exige un inventaire sans trou.
 - L'affichage est masqué dans les menus, les cinématiques et les portes.
-- Testé avec Jill, sur émulateur avec un BIOS Sony et dans PCSX-Redux (OpenBIOS et SCPH-5502). Pas encore testé sur console, ni avec Chris (6 cases) et Rebecca : les retours sont les bienvenus.
+- Testé avec Jill sur les trois versions dans PCSX-Redux (OpenBIOS ; démarrage vérifié aussi avec le BIOS Sony SCPH-5502), et la version FR sur émulateur avec un BIOS Sony. Pas encore testé sur console, ni avec Chris (6 cases) et Rebecca : les retours sont les bienvenus.
 
 ## Fonctionnement
 
@@ -74,7 +82,8 @@ Organisation des sources (`src/`) :
 | `hotkey.S` | démarrage, `config`, les trois accroches |
 | `lib.S` | tests d'état du jeu, primitives GPU, nombres |
 | `feat_menu_move.S`, `feat_quickslots.S`, `feat_overlay.S`, `feat_hud.S`, `feat_quickturn.S` | un fichier par option, à réutiliser librement |
-| `game.h` | adresses et constantes du jeu (version FR) |
+| `game.h` | ce que le mod utilise du jeu (noms, champs, constantes) |
+| `versions.py` | les adresses de chaque version + constantes du disque (`version.h` en est généré) |
 | `build.py` | toute la construction |
 | `patcher/core.js`, `patcher/patcher.html` | le patcheur (navigateur et Node) |
 
@@ -88,20 +97,21 @@ Prérequis : Python 3, Node, une toolchain GNU MIPS, chdman et xdelta3. Sous Win
 - `tools/chdman/chdman.exe` : de MAME ;
 - `tools/xdelta/xdelta3-*.exe` : [xdelta3 3.0.11](https://github.com/jmacd/xdelta-gpl/releases).
 
-Place le CHD d'origine `Resident Evil - Director's Cut (France) [SLES_009.70].chd` à la racine, puis :
+Place les images d'origine à la racine (noms de CHD de `src/versions.py`, par exemple `Resident Evil - Director's Cut (USA).chd`) ou leur `.bin` en `build/<version>/orig.bin` (`fr`, `us`, `usds`), puis :
 
 ```
-python src/build.py              # bloc, BIN/CUE patchés, patcheur, .ppf, .xdelta, CHD patché
-python src/build.py --asm        # seulement le bloc de code
-python src/build.py --no-chd     # sans le CHD
+python src/build.py              # toutes les versions trouvées : bloc, BIN/CUE patchés, xdelta, patcheur
+python src/build.py --ver us     # une seule version
+python src/build.py --asm        # seulement les blocs de code
+python src/build.py --chd        # avec les CHD patchés
 node tools/test_patcher.js       # le patcheur JS doit produire les mêmes octets que Python
 ```
 
-Le banc de test (`tools/emu-tests/`) pilote PCSX-Redux avec des scénarios Lua (`run.py <scénario>`) ; il faut un save state fait soi-même (`launch.py`, puis `cmd.py "save dining_jill"`).
+Le banc de test (`tools/emu-tests/`) pilote PCSX-Redux avec des scénarios Lua (`run.py <scénario> --ver us`) ; il faut des save states faits soi-même (`launch.py us`, puis `cmd.py "save dining_us"`).
 
 ## Autres versions
 
-Toutes les adresses du jeu (fonctions et variables) sont propres à l'exécutable français. Porter le mod sur une autre version, c'est retrouver ces fonctions et variables dans l'autre exécutable (recherche de signatures dans le désassemblage), puis mettre à jour `src/game.h`, les sites d'accroche de `src/build_patch.py` et les constantes du disque (LBA, taille et somme de contrôle de l'exécutable). Les contributions sont les bienvenues.
+Chaque version a son propre exécutable, donc toutes les adresses (fonctions, variables, sites d'accroche) diffèrent. `tools/re/port.py` retrouve les adresses françaises dans un autre exécutable : il apparie les fonctions par signature (instructions aux adresses masquées), puis les aligne pour en déduire les adresses des données. Ses résultats doivent être vérifiés à la main (sites d'appel, corps de fonctions, tables retrouvées par leur contenu), puis ajoutés dans `src/versions.py`, avec les constantes du disque (`tools/re/iso.py` donne le LBA et la taille de l'exécutable). L'assembleur refuse un registre de base partagé qui ne serait plus valable dans une version (`SAMEHI`). Les contributions sont les bienvenues, surtout pour l'Europe en anglais (SLES-00969), l'Allemagne et le Japon.
 
 ## Crédits
 

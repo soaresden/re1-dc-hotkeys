@@ -3,7 +3,7 @@
    (DATA, generated): no game data is embedded, the executable comes from the
    user's own disc image.
 
-   Exported: RE1Patch.{DATA, crc32, readExe, patchExe, encodeSectors, makePPF} */
+   Exported: RE1Patch.{DATA, crc32, readExe, patchExe, versionForSize, encodeSectors, makePPF} */
 (function (root) {
   'use strict';
 
@@ -77,6 +77,7 @@
   }
 
   /* last `drop` bytes of the image as (addr, len, data) segments (src/make_tail.py) */
+  const GAP = 8;
   function makeTail(exe, drop) {
     const D = rd32(exe, 0x1C), tail = exe.subarray(0x800 + D - drop, 0x800 + D);
     const base = 0x80010000 + D - drop, out = [];
@@ -86,7 +87,7 @@
     while (i < n) {
       if (tail[i]) {
         let j = i, last = i;
-        while (j < n && (tail[j] || j - last < 32)) { if (tail[j]) last = j; j++; }
+        while (j < n && (tail[j] || j - last < GAP)) { if (tail[j]) last = j; j++; }
         const s0 = i & ~3, e0 = (last + 4) & ~3;
         push32(base + s0); push32(e0 - s0);
         for (let k = s0; k < e0; k++) out.push(tail[k]);
@@ -97,14 +98,15 @@
     return Uint8Array.from(out);
   }
 
-  /* exe: original SLES_009.70; config: array of 0/1 per feature -> patched exe */
-  function patchExe(exe, config) {
-    const D = root.RE1Patch.DATA;
+  /* exe: original executable of version vid (DATA.versions key);
+     config: array of 0/1 per feature -> patched exe */
+  function patchExe(vid, exe, config) {
+    const D = root.RE1Patch.DATA, V = D.versions[vid];
     const pc0 = rd32(exe, 0x10), tAddr = rd32(exe, 0x18), tSize = rd32(exe, 0x1C);
-    if (pc0 !== D.pc0 || tAddr !== D.origBase || tSize !== D.tSize) throw new Error('executable inattendu');
-    const code = b64(D.code);
+    if (pc0 !== V.pc0 || tAddr !== D.origBase || tSize !== V.tSize) throw new Error('unexpected executable');
+    const code = b64(V.code);
     const tail = makeTail(exe, D.block);
-    if (code.length + tail.length > D.block) throw new Error('bloc trop grand');
+    if (code.length + tail.length > D.block) throw new Error('block too big');
     const out = new Uint8Array(exe.length);
     out.set(exe.subarray(0, 0x800));
     wr32(out, 0x10, D.base);                      /* pc0 */
@@ -113,12 +115,18 @@
     out.set(tail, 0x800 + code.length);
     out.set(exe.subarray(0x800, 0x800 + tSize - D.block), 0x800 + D.block);
     for (let i = 0; i < config.length; i++) out[0x800 + D.configOffset + i] = config[i] ? 1 : 0;
-    for (const [site, orig, jal] of D.hooks) {
+    for (const [site, orig, jal] of V.hooks) {
       const o = 0x800 + site - D.base;
-      if (rd32(out, o) !== orig) throw new Error('site 0x' + site.toString(16) + ' inattendu');
+      if (rd32(out, o) !== orig) throw new Error('unexpected code at 0x' + site.toString(16));
       wr32(out, o, jal);
     }
     return out;
+  }
+
+  /* version whose disc image has this size, or null */
+  function versionForSize(size) {
+    const vs = root.RE1Patch.DATA.versions;
+    return Object.keys(vs).find(k => vs[k].binSizes.includes(size)) || null;
   }
 
   /* original raw sectors + patched exe -> patched raw sectors */
@@ -175,5 +183,5 @@
     return new Uint8Array(Buffer.from(s, 'base64'));
   }
 
-  root.RE1Patch = Object.assign(root.RE1Patch || {}, { SECTOR, crc32, readExe, makeTail, patchExe, encodeSectors, makePPF });
+  root.RE1Patch = Object.assign(root.RE1Patch || {}, { SECTOR, crc32, readExe, makeTail, patchExe, versionForSize, encodeSectors, makePPF });
 })(typeof window !== 'undefined' ? window : globalThis);

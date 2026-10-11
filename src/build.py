@@ -1,30 +1,32 @@
-"""Full build: original CHD -> hotkey block -> patched BIN/CHD -> PPF + xdelta.
+"""Full build, for every version of src/versions.py whose original disc is
+available: original CHD -> code block -> patched BIN (+ CHD) -> xdelta / PPF,
+then the patcher (all versions in one page).
 
-usage: python src/build.py [--asm] [--no-chd] [--no-patches]
-  --asm         only assemble hotkey.bin (needs build/SLES_009.70)
-  --no-chd      skip the patched CHD (slow)
-  --no-patches  skip the .ppf / .xdelta
+usage: python src/build.py [--ver fr,us,usds] [--asm] [--chd] [--no-patches]
+  --ver         versions to build (default: every version whose disc is found)
+  --asm         only assemble the code blocks
+  --chd         also make the patched CHDs (slow)
+  --no-patches  skip the .xdelta / .ppf
 
-Everything is relative to the project folder; intermediate files go to build/.
+Everything is relative to the project folder. Per version, build/<version>/
+holds orig.bin / orig.cue (extracted from the CHD at the root, or put there by
+hand), exe, version.h, tail.bin, hotkey.*, patched.bin / patched.cue.
 Tools are looked up in tools/ first (Windows builds), then on the PATH:
   tools/mips/bin/mipsel-none-elf-*   or  mips-linux-gnu-*  (cpp, as, ld, objcopy, objdump, nm)
   tools/chdman/chdman.exe            or  chdman
   tools/xdelta/xdelta3-*.exe         or  xdelta3
 """
-import base64, datetime, glob, hashlib, json, os, re, shutil, subprocess, sys, zlib
+import base64, datetime, glob, hashlib, json, os, re, shutil, struct, subprocess, sys, zlib
 
 SRC = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SRC)
 BUILD = os.path.join(ROOT, 'build')
 TOOLS = os.path.join(ROOT, 'tools')
-NAME = "Resident Evil - Director's Cut (France) [SLES_009.70]"
-ORIG_CHD = os.path.join(ROOT, NAME + '.chd')
-HK_CHD = os.path.join(ROOT, NAME + ' [Hotkeys].chd')
-PPF = os.path.join(ROOT, 'patch', NAME + '.ppf')
-XDELTA = os.path.join(ROOT, 'patch', NAME + ' - Raccourcis.xdelta')
-PPF_DESC = 'RE1 DC FR - raccourcis L2 + deplacement objets'
 PATCHER = os.path.join(ROOT, 'patcher', 'RE1-Hotkeys-Patcher.html')
-ORIG_BIN_SHA1 = '5d9d1ea07595ae468ba4183a73331f0dace2384e'
+sys.path.insert(0, SRC)
+from versions import VERSIONS, header  # noqa: E402
+
+PPF_DESC = 'RE1 DC - quick slots, HUD, quick turn'
 
 
 def tool(name):
@@ -59,35 +61,53 @@ def sha1(path):
     return h.hexdigest()
 
 
-def b(name):
-    return os.path.join(BUILD, name)
+def vdir(vid, name=''):
+    return os.path.join(BUILD, vid, name)
 
 
-def assemble():
-    sys.path.insert(0, SRC)
+def prepare(vid):
+    """build/<vid>/orig.bin (from the CHD at the root if needed) and exe"""
+    import build_patch
+    v = VERSIONS[vid]
+    os.makedirs(vdir(vid), exist_ok=True)
+    b = lambda n: vdir(vid, n)
+    if not os.path.exists(b('orig.bin')):
+        chd = os.path.join(ROOT, v['chd'])
+        if not os.path.exists(chd):
+            return False
+        print(vid, ': extraction de', v['chd'])
+        run(exe_tool('chdman', 'chdman*.exe', 'chdman'), 'extractcd', '-i', chd, '-o', b('orig.cue'), '-ob', b('orig.bin'))
+    if not os.path.exists(b('exe')):
+        if sha1(b('orig.bin')) != v['bin_sha1']:
+            sys.exit(vid + ' : orig.bin ne correspond pas au BIN Redump attendu')
+        open(b('exe'), 'wb').write(build_patch.extract_exe(vid, b('orig.bin')))
+    return True
+
+
+def assemble(vid):
     from make_tail import make_tail
-    make_tail(b('SLES_009.70'), b('tail.bin'))
-    pre = subprocess.check_output([tool('cpp'), '-P', '-undef', os.path.join(SRC, 'hotkey.S')]).decode()
+    import build_patch
+    b = lambda n: vdir(vid, n)
+    make_tail(b('exe'), b('tail.bin'))
+    t_size = struct.unpack_from('<I', open(b('exe'), 'rb').read(), 0x1C)[0]
+    tail_start = build_patch.ORIG_BASE + t_size - build_patch.BLOCK
+    open(b('version.h'), 'w', newline='\n').write(
+        header(vid) + '#define %-16s 0x%08x\n#define %-16s 0x%x\n' % ('TAIL_START', tail_start, 'BLOCK_SIZE', build_patch.BLOCK))
+    pre = subprocess.check_output([tool('cpp'), '-P', '-undef', '-I', vdir(vid), os.path.join(SRC, 'hotkey.S')]).decode()
     open(b('hotkey.pre.s'), 'w', newline='\n').write(pre)
     run(sys.executable, os.path.join(SRC, 'fix_delay.py'), b('hotkey.pre.s'), b('hotkey.s'))
-    run(tool('as'), '-march=r3000', '-mno-shared', '-EL', '-I', BUILD, '-o', b('hotkey.o'), b('hotkey.s'))
+    run(tool('as'), '-march=r3000', '-mno-shared', '-EL', '-I', vdir(vid), '-o', b('hotkey.o'), b('hotkey.s'))
     run(tool('ld'), '-EL', '-T', os.path.join(SRC, 'link.ld'), '-o', b('hotkey.elf'), b('hotkey.o'))
     run(tool('objcopy'), '-O', 'binary', '-j', '.text', b('hotkey.elf'), b('hotkey.bin'))
-    check_hazards()
-    nm = subprocess.check_output([tool('nm'), b('hotkey.elf')]).decode()
-    for line in nm.splitlines():
-        if re.search(r' (_start|config|hook|draw_hook|frame_hook|swap_task|st|code_end|taildata|block_end)$', line):
-            print('  ' + line)
+    check_hazards(vid)
 
 
-def check_hazards():
-    # only the code: data (config, .data, .tail) is skipped
-    syms = {}
-    for line in subprocess.check_output([tool('nm'), b('hotkey.elf')]).decode().splitlines():
-        a, t, n = line.split()
-        syms[n] = int(a, 16) & 0xffffffff
+def check_hazards(vid):
+    import build_patch
+    b = lambda n: vdir(vid, n)
+    syms = build_patch.symbols(b('hotkey.elf'))
     code_end = syms['code_end']
-    data = (syms['config'], syms['config'] + 8)
+    data = (syms['config'], syms['config'] + 8)     # config: data, not code
     d = subprocess.check_output([tool('objdump'), '-d', '-EL', b('hotkey.elf')]).decode().splitlines()
     ins = []
     for l in d:
@@ -107,88 +127,91 @@ def check_hazards():
             if nxt.startswith('b') or nxt in jumps:
                 print('BRANCH IN DELAY SLOT', a); bad += 1
     size = os.path.getsize(b('hotkey.bin'))
-    print('hotkey.bin', size, 'octets, hazards', bad)
-    print('code', code_end - syms['_start'], 'octets, bloc', size, '/', 0x1800, 'octets')
-    if bad or size > 0x1800:
+    print('%-5s code %d octets, bloc %d / %d, hazards %d' % (vid, code_end - syms['_start'], size, build_patch.BLOCK, bad))
+    if bad or size > build_patch.BLOCK:
         sys.exit('construction refusée')
 
 
-def make_patcher():
-    """patcher/RE1-Hotkeys-Patcher.html: src/patcher/patcher.html with core.js and
-    the code block inlined (no game data: the patcher reads the user's disc)."""
-    sys.path.insert(0, SRC)
+def patch_version(vid, args):
     import build_patch
-    syms = {}
-    for line in subprocess.check_output([tool('nm'), b('hotkey.elf')]).decode().splitlines():
-        a, t, n = line.split()
-        syms[n] = int(a, 16) & 0xffffffff
-    code = open(b('hotkey.bin'), 'rb').read()[:syms['taildata'] - syms['_start']]
-    exe = open(b('SLES_009.70'), 'rb').read()
-    data = {
-        'version': datetime.date.today().isoformat(),
-        'base': build_patch.HOOK_BASE, 'block': build_patch.BLOCK,
-        'configOffset': syms['config'] - syms['_start'],
-        'code': base64.b64encode(code).decode(),
-        'hooks': [[site, orig, build_patch.jal(syms[name])] for site, orig, name in build_patch.HOOKS],
-        'pc0': 0x800606A8, 'origBase': build_patch.ORIG_BASE, 'tSize': 0x9F800,
-        'exeLba': build_patch.EXE_LBA, 'exeSectors': build_patch.EXE_SECTORS,
-        'exeCrc': zlib.crc32(exe), 'patchedCrc': zlib.crc32(open(b('SLES_009.70.patched'), 'rb').read()),
-        'binSize': os.path.getsize(b('re1.bin')), 'ppfDesc': PPF_DESC,
-    }
+    b = lambda n: vdir(vid, n)
+    v = VERSIONS[vid]
+    exe = build_patch.build_exe(vid, vdir(vid))
+    open(b('exe.patched'), 'wb').write(exe)
+    build_patch.inject(vid, b('orig.bin'), b('patched.bin'), exe)
+    open(b('patched.cue'), 'w', newline='\n').write('FILE "patched.bin" BINARY\n' + v['cue_tracks'])
+    print('%-5s patched.bin %s' % (vid, sha1(b('patched.bin'))))
+    stem = v['name']
+    if '--no-patches' not in args:
+        os.makedirs(os.path.join(ROOT, 'patch'), exist_ok=True)
+        xdelta = os.path.join(ROOT, 'patch', stem + ' [Hotkeys].xdelta')
+        if os.path.exists(xdelta):
+            os.remove(xdelta)
+        # relative names: xdelta3 stores them in its header
+        run(exe_tool('xdelta', 'xdelta3*.exe', 'xdelta3'), '-e', '-9', '-s', 'orig.bin', 'patched.bin', xdelta, cwd=vdir(vid))
+        # the .ppf holds the shifted executable: local use only (not published)
+        run(sys.executable, os.path.join(SRC, 'make_ppf.py'), b('orig.bin'), b('patched.bin'), b('patched.ppf'), PPF_DESC)
+        print('%-5s xdelta %s' % (vid, sha1(xdelta)))
+    if '--chd' in args:
+        chd = os.path.join(ROOT, stem + ' [Hotkeys].chd')
+        if os.path.exists(chd):
+            os.remove(chd)
+        run(exe_tool('chdman', 'chdman*.exe', 'chdman'), 'createcd', '-i', b('patched.cue'), '-o', chd)
+        print('%-5s chd %s' % (vid, sha1(chd)))
+
+
+def make_patcher(vids):
+    """patcher/RE1-Hotkeys-Patcher.html (and docs/index.html for GitHub Pages):
+    src/patcher/patcher.html with core.js and the code blocks inlined. No game
+    data: the patcher reads the executable from the user's disc."""
+    import build_patch
+    data = {'version': datetime.date.today().isoformat(), 'base': build_patch.HOOK_BASE,
+            'block': build_patch.BLOCK, 'origBase': build_patch.ORIG_BASE, 'ppfDesc': PPF_DESC, 'versions': {}}
+    for vid in vids:
+        v = VERSIONS[vid]
+        b = lambda n: vdir(vid, n)
+        syms = build_patch.symbols(b('hotkey.elf'))
+        exe = open(b('exe'), 'rb').read()
+        data['configOffset'] = syms['config'] - syms['_start']
+        data['versions'][vid] = {
+            'name': v['name'], 'serial': v['serial'],
+            'code': base64.b64encode(open(b('hotkey.bin'), 'rb').read()[:syms['taildata'] - syms['_start']]).decode(),
+            'hooks': [[site, orig, build_patch.jal(syms[name])] for site, orig, name in build_patch.hooks(vid)],
+            'pc0': v['addr']['GAME_ENTRY'], 'tSize': struct.unpack_from('<I', exe, 0x1C)[0],
+            'exeLba': v['exe_lba'], 'exeSectors': v['exe_sectors'],
+            'exeCrc': zlib.crc32(exe), 'patchedCrc': zlib.crc32(open(b('exe.patched'), 'rb').read()),
+            'binSizes': [v['bin_size']] + ([v['track1_size']] if 'track1_size' in v else []),
+            'track1Size': v.get('track1_size', 0), 'cueTracks': v['cue_tracks'],
+        }
     js = 'window.RE1Patch = Object.assign(window.RE1Patch || {}, { DATA: ' + json.dumps(data) + ' });\n'
-    open(b('patcher_data.js'), 'w', newline='\n').write(js.replace('window.', 'globalThis.'))
+    open(os.path.join(BUILD, 'patcher_data.js'), 'w', newline='\n').write(js.replace('window.', 'globalThis.'))
     html = open(os.path.join(SRC, 'patcher', 'patcher.html'), encoding='utf-8').read()
     core = open(os.path.join(SRC, 'patcher', 'core.js'), encoding='utf-8').read()
     html = html.replace('/*CORE*/', core).replace('/*DATA*/', js)
     os.makedirs(os.path.dirname(PATCHER), exist_ok=True)
     open(PATCHER, 'w', encoding='utf-8', newline='\n').write(html)
-    # same page for GitHub Pages (served from docs/)
     open(os.path.join(ROOT, 'docs', 'index.html'), 'w', encoding='utf-8', newline='\n').write(html)
-    print('patcher', os.path.relpath(PATCHER, ROOT), len(html), 'octets')
+    print('patcher', os.path.relpath(PATCHER, ROOT), len(html), 'octets,', ', '.join(vids))
 
 
 def main():
-    args = set(sys.argv[1:])
-    os.makedirs(BUILD, exist_ok=True)
+    args = sys.argv[1:]
+    want = list(VERSIONS)
+    if '--ver' in args:
+        want = args[args.index('--ver') + 1].split(',')
     os.environ['NM'] = tool('nm')
-    chdman = exe_tool('chdman', 'chdman*.exe', 'chdman')
-
-    if not os.path.exists(b('re1.bin')):
-        print('extraction du CHD d\'origine...')
-        run(chdman, 'extractcd', '-i', ORIG_CHD, '-o', b('re1.cue'), '-ob', b('re1.bin'))
-    if not os.path.exists(b('SLES_009.70')):
-        if sha1(b('re1.bin')) != ORIG_BIN_SHA1:
-            sys.exit('build/re1.bin ne correspond pas au BIN Redump FR')
-        sys.path.insert(0, SRC)
-        from build_patch import extract_exe
-        open(b('SLES_009.70'), 'wb').write(extract_exe(b('re1.bin')))
-
-    assemble()
+    import build_patch
+    build_patch.NM = os.environ['NM']
+    vids = [vid for vid in want if prepare(vid)]
+    if not vids:
+        sys.exit('aucune image d\'origine trouvée (CHD à la racine ou build/<version>/orig.bin)')
+    for vid in vids:
+        assemble(vid)
     if '--asm' in args:
         return
-
-    run(sys.executable, os.path.join(SRC, 'build_patch.py'), b('re1.bin'), b('re1_hk.bin'), BUILD, cwd=SRC)
-    open(b('re1_hk.cue'), 'w', newline='\n').write(
-        'FILE "re1_hk.bin" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n')
-    print('re1_hk.bin', sha1(b('re1_hk.bin')))
-    make_patcher()
-
-    if '--no-patches' not in args:
-        os.makedirs(os.path.dirname(PPF), exist_ok=True)
-        run(sys.executable, os.path.join(SRC, 'make_ppf.py'), b('re1.bin'), b('re1_hk.bin'), PPF, PPF_DESC)
-        xd = exe_tool('xdelta', 'xdelta3*.exe', 'xdelta3')
-        if os.path.exists(XDELTA):
-            os.remove(XDELTA)
-        # relative names: xdelta3 stores them in its header
-        run(xd, '-e', '-9', '-s', 're1.bin', 're1_hk.bin', XDELTA, cwd=BUILD)
-        print('ppf   ', sha1(PPF))
-        print('xdelta', sha1(XDELTA))
-
-    if '--no-chd' not in args:
-        if os.path.exists(HK_CHD):
-            os.remove(HK_CHD)
-        run(chdman, 'createcd', '-i', b('re1_hk.cue'), '-o', HK_CHD)
-        print('chd   ', sha1(HK_CHD))
+    for vid in vids:
+        patch_version(vid, args)
+    make_patcher([vid for vid in VERSIONS if os.path.exists(vdir(vid, 'exe.patched'))])
 
 
 if __name__ == '__main__':

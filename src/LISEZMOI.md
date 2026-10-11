@@ -1,4 +1,6 @@
-# RE1 Director's Cut (FR, SLES-009.70) : raccourcis, HUD et demi-tour
+# RE1 Director's Cut : raccourcis, HUD et demi-tour
+
+Versions prises en charge : France (SLES-00970), USA (SLUS-00551), USA Dual Shock (SLUS-00747). Le patcheur reconnaît la version tout seul.
 
 ## Installer
 
@@ -9,7 +11,7 @@
 
 Tout se passe dans le navigateur, rien n'est envoyé. Le patcheur ne contient aucune donnée du jeu : il lit l'exécutable sur ton image. Jeu uniquement en `.chd` : `chdman extractcd -i jeu.chd -o jeu.cue -ob jeu.bin`.
 
-**Patchs tout faits** (toutes les options), dans `patch/` : `.ppf` (PPF 3.0) et `.xdelta` (xdelta3, Delta Patcher…). Ils s'appliquent sur le BIN Redump « Resident Evil - Director's Cut (France) », SHA1 5d9d1ea07595ae468ba4183a73331f0dace2384e.
+**Patchs tout faits** (toutes les options), dans `patch/` : un `.xdelta` par version (xdelta3, Delta Patcher…), à appliquer sur le BIN d'origine (SHA1 dans le README).
 
 ## Les options
 
@@ -79,10 +81,10 @@ Pendant que L2 est maintenu, la croix ne fait plus bouger le perso.
 Prérequis : Python 3 et Node, plus les outils dans `tools/` (Windows) ou sur le PATH (Linux : binutils-mips-linux-gnu, cpp, chdman, xdelta3). Le CHD d'origine doit être à la racine du projet.
 
 ```
-python src/build.py              # tout : bloc, BIN/CUE patchés, patcheur, .ppf, .xdelta, CHD [Hotkeys]
+python src/build.py              # toutes les versions trouvées : bloc, BIN/CUE patchés, patcheur, .xdelta
 python src/build.py --asm        # seulement le bloc de code
-python src/build.py --no-chd     # sans le CHD (plus rapide)
+python src/build.py --ver us     # une seule version (fr, us, usds) ; --chd : CHD patchés
 node tools/test_patcher.js       # le patcheur doit donner exactement le même résultat
 ```
 
-Les fichiers intermédiaires vont dans `build/`. Le code est dans `src/hotkey.S` (démarrage, accroches), `src/lib.S` (outils communs) et un fichier `src/feat_*.S` par option ; les adresses du jeu sont dans `src/game.h`.
+Les fichiers intermédiaires vont dans `build/`. Le code est dans `src/hotkey.S` (démarrage, accroches), `src/lib.S` (outils communs) et un fichier `src/feat_*.S` par option ; les adresses du jeu de chaque version sont dans `src/versions.py`.

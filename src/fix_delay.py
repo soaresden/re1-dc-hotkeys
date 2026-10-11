@@ -32,7 +32,9 @@ for i, s in enumerate(stmts):
         if prev_branch:
             sys.exit('load in a branch delay slot: ' + s.strip())
         reg = m.group(2)
-        nxt = next((t for t in stmts[i + 1:] if t.strip() and not LABEL_ONLY.match(t.strip())), '')
+        # next statement, skipping labels and the assembly-time checks (SAMEHI)
+        nxt = next((t for t in stmts[i + 1:] if t.strip() and not LABEL_ONLY.match(t.strip())
+                    and not re.match(r'\s*\.(if|error|endif|else)\b', t)), '')
         if not code(nxt) or re.search(r'\$' + reg + r'\b', nxt):
             out.append(NOP)
     prev_branch = bool(BRANCH.match(s))

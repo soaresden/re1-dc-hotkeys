@@ -57,8 +57,8 @@ overlay_draw:
         jal     put_poly
         li      $a3, Z_OVERLAY
         /* item */
-        lui     $t8, 0x800c
-        lw      $t2, -0x4ef8($t8)          /* inventory pointer */
+        lui     $t8, %hi(INV_PTR)
+        lw      $t2, %lo(INV_PTR)($t8)     /* inventory pointer */
         sll     $t3, $s1, 1
         addu    $t2, $t2, $t3
         lbu     $s3, 0($t2)                /* id */
@@ -66,7 +66,8 @@ overlay_draw:
         beqz    $s3, 8f
         nop
         sw      $t4, 0x10($sp)
-        addiu   $t3, $t8, -0x4e18          /* 0x800BB1E8 icon cache slot */
+        SAMEHI(INV_PTR, ICON_CACHE)
+        addiu   $t3, $t8, %lo(ICON_CACHE)  /* icon cache slot */
         addu    $t3, $t3, $s1
         lbu     $t3, 0($t3)
         sll     $t3, $t3, 13               /* v = cache slot * 32, in bits 8-15 */
@@ -100,8 +101,8 @@ overlay_draw:
         jal     draw_number
         li      $a3, DIG_GREEN
 3:      /* equipped weapon: tint the cell */
-        lui     $t0, 0x800d
-        lbu     $t1, -0x7977($t0)          /* 0x800C8689, 1-based */
+        lui     $t0, %hi(EQUIPPED)
+        lbu     $t1, %lo(EQUIPPED)($t0)    /* 1-based */
         addiu   $t2, $s1, 1
         bne     $t1, $t2, 8f
         nop

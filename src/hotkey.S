@@ -1,4 +1,5 @@
-/* Resident Evil Director's Cut (PAL-F, SLES-009.70) - gameplay mods
+/* Resident Evil Director's Cut - gameplay mods (FR SLES-00970, US SLUS-00551,
+   US Dual Shock SLUS-00747: one build per version, addresses in version.h)
    Code block loaded at 0x8000E800 (prepended to the executable image).
 
    Each feature lives in its own file and can be switched off by the patcher
@@ -13,9 +14,9 @@
    Shared code: lib.S (game state tests, primitives, numbers).
 
    Three calls of the game are redirected (src/build_patch.py):
-     0x80032084 jal LOOP_NEXT   -> hook        every frame, after the pad read
-     0x80054C9C jal F_GRID_DRAW -> draw_hook   inventory item grid
-     0x80032740 jal F_PAL_ANIM  -> frame_hook  every frame, the OT is complete
+     SITE_HOOK  jal LOOP_NEXT   -> hook        every frame, after the pad read
+     SITE_GRID  jal F_GRID_DRAW -> draw_hook   inventory item grid
+     SITE_FRAME jal F_PAL_ANIM  -> frame_hook  every frame, the OT is complete
 */
         .set noreorder
         .set noat
@@ -30,12 +31,12 @@ config:
         .byte   1, 1, 1, 1, 1, 1, 0, 0
 
 boot:
-        /* the last 0x1800 bytes of the original image (0x800AE000..0x800AF800)
+        /* the last BLOCK_SIZE bytes of the original image (from TAIL_START)
            were dropped to make room for this block: zero them, then copy back
            the non-zero segments stored in taildata as (addr, len, bytes...) */
-        lui     $t1, 0x800b
-        addiu   $t1, $t1, -0x2000          /* 0x800AE000 */
-        li      $t2, 0x1800/4
+        lui     $t1, %hi(TAIL_START)
+        addiu   $t1, $t1, %lo(TAIL_START)
+        li      $t2, BLOCK_SIZE/4
 1:      sw      $zero, 0($t1)
         addiu   $t2, $t2, -1
         bnez    $t2, 1b
@@ -113,20 +114,21 @@ frame_hook:
         nop
         beqz    $v0, 9f
         nop
-        lui     $t0, 0x800d
-        lhu     $t1, -0x5500($t0)          /* 0x800CAB00: bit 0x0100 off during cutscenes */
+        lui     $t0, %hi(CTRL_FLAGS)
+        lhu     $t1, %lo(CTRL_FLAGS)($t0)  /* bit 0x0100 off during cutscenes */
         andi    $t1, $t1, 0x0100
         beqz    $t1, 9f
         nop
-        lbu     $t1, -0x7ba5($t0)          /* 0x800C845B: 1 during doors */
+        SAMEHI(CTRL_FLAGS, DOOR_FLAG)
+        lbu     $t1, %lo(DOOR_FLAG)($t0)   /* 1 during doors */
         bnez    $t1, 9f
         nop
         jal     ot_desc_game               /* s4 = scene OT of this frame */
         nop
         /* the game draws both buffers with the same drawing offset and adds
-           0x800C845C (0 or 240) to its y coordinates itself: so do we */
-        lui     $t0, 0x800d
-        lbu     $t1, -0x7ba4($t0)          /* 0x800C845C */
+           Y_OFFSET (0 or 240) to its y coordinates itself: so do we */
+        lui     $t0, %hi(Y_OFFSET)
+        lbu     $t1, %lo(Y_OFFSET)($t0)
         lui     $t2, %hi(st + ST_YBIAS)
         sh      $t1, %lo(st + ST_YBIAS)($t2)
         jal     hud_draw
@@ -134,8 +136,8 @@ frame_hook:
         CFG($t0, C_OVERLAY)
         beqz    $t0, 9f
         nop
-        lui     $t0, 0x800d
-        lw      $t1, -0x3fc($t0)           /* 0x800CFC04 raw pad held */
+        lui     $t0, %hi(PAD_HELD)
+        lw      $t1, %lo(PAD_HELD)($t0)    /* raw pad held */
         andi    $t1, $t1, 0x0001           /* L2 */
         beqz    $t1, 9f
         nop
@@ -161,6 +163,11 @@ draw_hook:
         sw      $s3, 0x0c($sp)
         sw      $s4, 0x08($sp)
         JAL(F_GRID_DRAW)
+#ifdef TASK_PC_RESUME
+        li      $t1, 2                     /* the inventory is open (menu_open) */
+        lui     $t0, %hi(st + ST_MENU)
+        sb      $t1, %lo(st + ST_MENU)($t0)
+#endif
         jal     ot_desc
         nop
         jal     menu_offset                /* s2, s3 = screen offset of the menu */
@@ -201,7 +208,8 @@ st:                                        /* state of the features */
         .byte   0                          /* ST_TURN: frames left in a quick turn */
         .byte   0                          /* ST_LOCK: down is ignored until released */
         .hword  0                          /* ST_YBIAS: 0 or 240, see frame_hook */
-        .hword  0
+        .byte   0                          /* ST_MENU: see menu_open */
+        .byte   0
 
         .section .tail
         .balign 4

@@ -10,23 +10,25 @@
 menu_move_input:
         addiu   $sp, $sp, -0x18
         sw      $ra, 0x14($sp)
-        lui     $t0, 0x800d
-        lw      $t3, -0x3f8($t0)           /* 0x800CFC08 raw newly pressed */
+        lui     $t0, %hi(PAD_NEW)
+        lw      $t3, %lo(PAD_NEW)($t0)     /* raw newly pressed */
         andi    $t3, $t3, 0x0080           /* Square */
         beqz    $t3, 9f
         nop
-        lui     $t8, 0x800c
-        lbu     $t6, -0x6f10($t8)          /* 0x800B90F0: 1 = on the grid */
+        lui     $t8, %hi(MW_GRID)
+        lbu     $t6, %lo(MW_GRID)($t8)     /* 1 = on the grid */
         li      $t5, 1
         bne     $t6, $t5, 9f
         nop
-        lbu     $t6, -0x6f0d($t8)          /* 0x800B90F3 cursor = (slot+4)*2 */
+        SAMEHI(MW_GRID, MW_CURSOR)
+        lbu     $t6, %lo(MW_CURSOR)($t8)   /* cursor = (slot+4)*2 */
         sltiu   $t5, $t6, 8
         bnez    $t5, 9f
         nop
         srl     $t6, $t6, 1
         addiu   $t7, $t6, -4               /* t7 = cursor slot */
-        lw      $t9, -0x4ef8($t8)          /* inventory pointer */
+        lui     $t9, %hi(INV_PTR)
+        lw      $t9, %lo(INV_PTR)($t9)     /* inventory pointer */
         sll     $t4, $t7, 1
         addu    $t4, $t4, $t9              /* &inv[cursor] */
         lbu     $t2, 0($t4)
@@ -51,9 +53,9 @@ menu_move_input:
         lhu     $t3, 0($t4)
         sh      $t3, 0($t1)
         sh      $t2, 0($t4)
-        /* swap the icon cache slots 0x800BB1E8[] */
-        lui     $t1, 0x800c
-        addiu   $t1, $t1, -0x4e18
+        /* swap the icon cache slots */
+        lui     $t1, %hi(ICON_CACHE)
+        addiu   $t1, $t1, %lo(ICON_CACHE)
         addu    $t2, $t1, $t6
         addu    $t3, $t1, $t7
         lbu     $a0, 0($t2)
@@ -61,19 +63,20 @@ menu_move_input:
         sb      $a1, 0($t2)
         sb      $a0, 0($t3)
         /* keep the equipped weapon on its item */
-        lbu     $t2, -0x7977($t0)          /* 0x800C8689, 1-based */
+        SAMEHI(PAD_NEW, EQUIPPED)
+        lbu     $t2, %lo(EQUIPPED)($t0)    /* 1-based */
         addiu   $a0, $t6, 1
         addiu   $a1, $t7, 1
         bne     $t2, $a0, 2f
         nop
         b       3f
-        sb      $a1, -0x7977($t0)
+        sb      $a1, %lo(EQUIPPED)($t0)
 2:      bne     $t2, $a1, 3f
         nop
-        sb      $a0, -0x7977($t0)
+        sb      $a0, %lo(EQUIPPED)($t0)
 3:      lbu     $t2, 0($t4)                /* item now under the cursor */
-        lui     $t8, 0x800c
-        sb      $t2, -0x6f15($t8)          /* 0x800B90EB */
+        lui     $t8, %hi(MW_ITEM)
+        sb      $t2, %lo(MW_ITEM)($t8)
         li      $a1, 6
 8:      li      $a0, 3                     /* menu sounds: 5 pick, 6 swap, 4 cancel */
         move    $a2, $zero
